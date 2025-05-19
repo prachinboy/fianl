@@ -1,7 +1,7 @@
 <template>
   <div class="signup-container">
     <div class="form-box">
-      <h1>สมัครสมาชิก</h1>
+      <h1>สมัครสมาชิกนะจ๊ะ</h1>
       <form @submit.prevent="handleSubmit">
         <div class="form-group">
           <label>ชื่อผู้ใช้</label>
@@ -26,30 +26,37 @@
 
 <script setup>
 import { ref } from 'vue'
-import { useToast } from 'vue-toastification'
 import { useRouter } from 'vue-router'
+import { getAuth, createUserWithEmailAndPassword } from 'firebase/auth'
+import { db } from '@/firebase/firebaseConfig'
+import { doc, setDoc } from 'firebase/firestore'
 
 const username = ref('')
 const email = ref('')
 const password = ref('')
-const toast = useToast()
 const router = useRouter()
 
 const handleSubmit = async () => {
   try {
-    const user = {
+    const auth = getAuth()
+    const userCredential = await createUserWithEmailAndPassword(auth, email.value, password.value)
+    const user = userCredential.user
+
+    await setDoc(doc(db, 'users', user.uid), {
+      uid: user.uid,
+      email: user.email,
       username: username.value,
-      email: email.value,
-      password: password.value
-    }
+      liked_dishes: []
+    })
 
-    localStorage.setItem('user', JSON.stringify(user))
-
-    toast.success('สมัครสมาชิกสำเร็จ! 🎉')
-    router.push('/login')
+    alert('✅ สมัครสมาชิกสำเร็จ และข้อมูลถูกบันทึกแล้ว')
+    router.push('/menu-selection')
   } catch (error) {
-    console.error(error)
-    toast.error('สมัครไม่สำเร็จ ลองใหม่อีกครั้ง ❌')
+    if (error.code === 'auth/email-already-in-use') {
+      alert('❌ อีเมลนี้ถูกใช้แล้ว โปรดเข้าสู่ระบบหรือใช้อีเมลอื่น')
+    } else {
+      alert('❌ สมัครไม่สำเร็จ: ' + error.message)
+    }
   }
 }
 </script>
