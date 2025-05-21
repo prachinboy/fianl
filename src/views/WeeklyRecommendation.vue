@@ -40,11 +40,9 @@ import { ref } from 'vue'
 import Multiselect from 'vue-multiselect'
 import { useRouter } from 'vue-router'
 import recipes from '@/data/recipes.json'
-
 import { db } from '@/firebase/firebaseConfig'
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
-
-import { recommendMenus } from '../utils/recommend'
+import { collection, addDoc, serverTimestamp, getDocs } from 'firebase/firestore'
+import { recommendMenus } from '@/utils/recommend'
 
 const selectedMeats = ref([])
 const selectedVeggies = ref([])
@@ -72,7 +70,6 @@ const spiceOptions = [
   { name: 'พริก' }, { name: 'กระเทียม' }, { name: 'ขิง' }, { name: 'ตะไคร้' },
   { name: 'ใบมะกรูด' }, { name: 'ข่า' }, { name: 'รากผักชี' }, { name: 'พริกไทยดำ' }
 ]
-console.log('✅ เข้าฟังก์ชัน handleSubmit แล้ว')
 
 const handleSubmit = async () => {
   const userProfile = {
@@ -84,18 +81,18 @@ const handleSubmit = async () => {
     disliked_dishes: []
   }
 
-  const resultData = recommendMenus(userProfile, recipes)
+  const snapshot = await getDocs(collection(db, 'recommend_logs'))
+  const logs = snapshot.docs.map(doc => doc.data())
+
+  const resultData = recommendMenus(userProfile, recipes, logs)
   const shuffled = [...resultData].sort(() => Math.random() - 0.5)
-  
-const final7 = shuffled.slice(0, 7)
+  const final7 = shuffled.slice(0, 7)
 
-// ✅ Save to Firestore
-await addDoc(collection(db, 'recommend_logs'), {
-  timestamp: serverTimestamp(),
-  userProfile,
-  resultData: final7
-})
-
+  await addDoc(collection(db, 'recommend_logs'), {
+    timestamp: serverTimestamp(),
+    userProfile,
+    resultData: final7
+  })
 
   router.push({
     path: '/menu-result',
