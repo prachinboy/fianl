@@ -22,9 +22,17 @@ const router = useRouter()
 const loginUser = async () => {
   try {
     const auth = getAuth()
-    await signInWithEmailAndPassword(auth, email.value, password.value)
+    const result = await signInWithEmailAndPassword(auth, email.value, password.value)
+
+    // ✅ บันทึก user ลง localStorage เพื่อ Dashboard ใช้ต่อ
+    localStorage.setItem('user', JSON.stringify({
+      username: email.value.split('@')[0],
+      email: email.value,
+      workouts: 0
+    }))
+
     alert('✅ เข้าสู่ระบบสำเร็จ')
-    router.push('/menu-selection')
+    router.push('/dashboard')
   } catch (error) {
     alert('❌ เข้าสู่ระบบไม่สำเร็จ: ' + error.message)
   }
@@ -34,8 +42,15 @@ const registerUser = async () => {
   try {
     const auth = getAuth()
     await createUserWithEmailAndPassword(auth, email.value, password.value)
+
+    localStorage.setItem('user', JSON.stringify({
+      username: email.value.split('@')[0],
+      email: email.value,
+      workouts: 0
+    }))
+
     alert('✅ สมัครสมาชิกสำเร็จ และเข้าสู่ระบบแล้ว')
-    router.push('/menu-selection')
+    router.push('/dashboard')
   } catch (error) {
     alert('❌ สมัครไม่สำเร็จ: ' + error.message)
   }

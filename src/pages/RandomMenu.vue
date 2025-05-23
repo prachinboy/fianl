@@ -3,11 +3,11 @@
     <h1> สุ่มเมนูตามดวง</h1>
     <button @click="getRandomFood">สุ่มเมนู</button>
 
-    <div v-if="randomFood" class="result">
-      <p><strong>ชื่อเมนู:</strong> {{ randomFood.name }}</p>
-      <p><strong>วัตถุดิบ:</strong> {{ randomFood.ingredients.join(', ') }}</p>
-      <p><strong>วิธีทำ:</strong> {{ randomFood.method }}</p>
-      <p><strong>แคลอรี่:</strong> {{ randomFood.calories }} kcal</p>
+    <div v-if="randomFoods.length" class="result" v-for="(food, index) in randomFoods" :key="index">
+      <p><strong>ชื่อเมนู:</strong> {{ food.name }}</p>
+      <p><strong>วัตถุดิบ:</strong> {{ food.ingredients.join(', ') }}</p>
+      <p><strong>วิธีทำ:</strong> {{ food.method }}</p>
+      <p><strong>แคลอรี่:</strong> {{ food.calories }} kcal</p>
     </div>
   </div>
 </template>
@@ -16,11 +16,11 @@
 import { ref } from 'vue'
 import recipes from '@/data/recipes.json'
 
-const randomFood = ref(null)
+const randomFoods = ref([])
 
 const getRandomFood = () => {
-  const index = Math.floor(Math.random() * recipes.length)
-  randomFood.value = recipes[index]
+  const shuffled = [...recipes].sort(() => Math.random() - 0.5)
+  randomFoods.value = shuffled.slice(0, 5)
 }
 </script>
 

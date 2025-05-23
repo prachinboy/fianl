@@ -1,5 +1,4 @@
-// ✅ ดึง log จริงจาก Firestore เพื่อใช้สร้าง Association Rules
-
+// ดึง log จาก Firestore เพื่อใช้กับ Apriori
 import { collection, getDocs } from 'firebase/firestore'
 import { db } from '@/firebase/firebaseConfig'
 
@@ -8,16 +7,19 @@ export const fetchRecommendationLogs = async () => {
     const snapshot = await getDocs(collection(db, 'recommend_logs'))
     const logs = snapshot.docs.map(doc => doc.data())
 
-    // ดึงเฉพาะชื่อเมนูจากแต่ละ log แล้วจัดกลุ่มตาม user
+    // Group by user
     const grouped = {}
 
     logs.forEach(entry => {
-      const user = entry.ผู้ใช้ || 'anonymous'
+      const user = entry.user || entry.ผู้ใช้ || 'anonymous'
+      const menu = entry.menu || entry.ชื่อ || null
+
+      if (!menu) return  // ข้ามถ้าไม่มีชื่อเมนู
+
       if (!grouped[user]) grouped[user] = []
-      grouped[user].push(entry.ชื่อ) // หรือเปลี่ยนเป็น entry.เมนู ถ้าใช้ key อื่น
+      grouped[user].push(menu)
     })
 
-    // คืนค่าเป็น array ของ array (สำหรับใช้ใน Apriori)
     return Object.values(grouped)
   } catch (err) {
     console.error('❌ ดึง log จาก Firestore ล้มเหลว:', err)

@@ -1,14 +1,19 @@
 <template>
   <div class="dashboard-container">
-    <div class="welcome-box">
-      <h1>ยินดีต้อนรับไอสัสนรก</h1>
+    <div class="welcome-box" v-if="user">
+      <h1>ยินดีต้อนรับ {{ user.username }}</h1>
       <p>ข้อมูลสรุปของคุณ: </p>
       <ul>
         <li>ชื่อผู้ใช้: {{ user.username }}</li>
         <li>อีเมล: {{ user.email }}</li>
-        <li>จำนวนการออกกำลังกาย: {{ user.workouts }} ครั้ง</li>
+        <li>จำนวนการใช้: {{ user.workouts }} ครั้ง</li>
       </ul>
+
+      <button @click="goToMenu" class="menu-button">ไปหน้าเลือกเมนู</button>
       <button @click="logout" class="logout-button">ออกจากระบบ</button>
+    </div>
+    <div v-else class="fallback-text">
+      <p>กำลังโหลดข้อมูลผู้ใช้...</p>
     </div>
   </div>
 </template>
@@ -16,20 +21,22 @@
 <script setup>
 import { useRouter } from 'vue-router'
 
-// ใช้ router สำหรับนำทางไปยังหน้า login หลังจาก logout
 const router = useRouter()
+const user = JSON.parse(localStorage.getItem('user') || 'null')
 
-// ฟังก์ชัน logout สำหรับการออกจากระบบ
-const logout = () => {
-  localStorage.removeItem('user')  // ลบข้อมูลผู้ใช้จาก localStorage
-  router.push('/login')  // ไปที่หน้า Login
+console.log('📦 user in Dashboard:', user)
+
+if (!user) {
+  router.push('/login')
 }
 
-// ตรวจสอบว่า user มีการเข้าสู่ระบบแล้วหรือยัง
-const user = JSON.parse(localStorage.getItem('user'))
-if (!user) {
-  // ถ้ายังไม่ได้เข้าสู่ระบบ ให้ไปที่หน้า Login
+const logout = () => {
+  localStorage.removeItem('user')
   router.push('/login')
+}
+
+const goToMenu = () => {
+  router.push('/menu-selection')
 }
 </script>
 
@@ -51,24 +58,43 @@ if (!user) {
   max-width: 400px;
 }
 
+.fallback-text {
+  color: #666;
+  font-size: 1.2rem;
+}
+
 h1 {
   text-align: center;
   margin-bottom: 1.5rem;
 }
 
-.logout-button {
+.logout-button,
+.menu-button {
   width: 100%;
   padding: 0.7rem;
-  background-color: #f44336;
-  color: white;
   border: none;
   border-radius: 0.5rem;
   font-weight: bold;
   cursor: pointer;
+  margin-top: 1rem;
   transition: background-color 0.3s ease;
+}
+
+.logout-button {
+  background-color: #f44336;
+  color: white;
 }
 
 .logout-button:hover {
   background-color: #d32f2f;
+}
+
+.menu-button {
+  background-color: #6c63ff;
+  color: white;
+}
+
+.menu-button:hover {
+  background-color: #5146d8;
 }
 </style>

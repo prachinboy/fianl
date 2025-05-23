@@ -1,4 +1,3 @@
-
 <template>
   <div class="menu-results-container">
     <h1>เมนูอาหารที่คุณสามารถทำได้ (ในสัปดาห์นี้)</h1>
@@ -45,7 +44,6 @@ const raw = route.query.result ? JSON.parse(route.query.result) : []
 
 const days = ['จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์', 'อาทิตย์']
 
-// 🔁 เวียนข้อมูลจาก raw มาใส่ให้ครบ 7 วัน
 const shuffled = [...raw].sort(() => Math.random() - 0.5)
 
 const menuItems = ref(days.map((day, index) => ({
@@ -54,7 +52,6 @@ const menuItems = ref(days.map((day, index) => ({
   type: shuffled[index]?.type ?? '-',
   score: shuffled[index]?.score ?? '-'
 })))
-
 
 const likeMenu = async (menuName) => {
   const auth = getAuth()
