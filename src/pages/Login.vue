@@ -22,13 +22,16 @@ const router = useRouter()
 const loginUser = async () => {
   try {
     const auth = getAuth()
-    const result = await signInWithEmailAndPassword(auth, email.value, password.value)
+    await signInWithEmailAndPassword(auth, email.value, password.value)
 
-    // ✅ บันทึก user ลง localStorage เพื่อ Dashboard ใช้ต่อ
+    // ✅ เพิ่มจำนวนการใช้งาน (workouts) โดยไม่เปลี่ยนโครงสร้างเดิม
+    const existing = JSON.parse(localStorage.getItem('user') || '{}')
+    const newCount = (existing.workouts || 0) + 1
+
     localStorage.setItem('user', JSON.stringify({
       username: email.value.split('@')[0],
       email: email.value,
-      workouts: 0
+      workouts: newCount
     }))
 
     alert('✅ เข้าสู่ระบบสำเร็จ')

@@ -19,6 +19,7 @@
             <td>
               {{ item.name }}
               <button @click="likeMenu(item.name)" class="like-btn">❤️</button>
+              <ReviewBox :menuName="item.name" />
             </td>
             <td>{{ item.type }}</td>
             <td>{{ item.score ?? '-' }}</td>
@@ -38,6 +39,7 @@ import { useRoute } from 'vue-router'
 import { getAuth } from 'firebase/auth'
 import { db } from '@/firebase/firebaseConfig'
 import { doc, updateDoc, arrayUnion } from 'firebase/firestore'
+import ReviewBox from '@/components/ReviewBox.vue'
 
 const route = useRoute()
 const raw = route.query.result ? JSON.parse(route.query.result) : []

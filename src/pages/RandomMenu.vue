@@ -1,7 +1,7 @@
 <template>
   <div class="random-menu-container">
-    <h1> สุ่มเมนูตามดวง</h1>
-    <button @click="getRandomFood">สุ่มเมนู</button>
+    <h1>สุ่มเมนูทั้งหมดจากระบบ</h1>
+    <button @click="getRandomFood">สุ่มเมนูทั้งหมด</button>
 
     <div v-if="randomFoods.length" class="result" v-for="(food, index) in randomFoods" :key="index">
       <p><strong>ชื่อเมนู:</strong> {{ food.name }}</p>
@@ -18,15 +18,23 @@ import recipes from '@/data/recipes.json'
 
 const randomFoods = ref([])
 
+// Fisher-Yates shuffle
+const shuffle = (array) => {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[array[i], array[j]] = [array[j], array[i]]
+  }
+  return array
+}
+
 const getRandomFood = () => {
-  const shuffled = [...recipes].sort(() => Math.random() - 0.5)
-  randomFoods.value = shuffled.slice(0, 5)
+  randomFoods.value = shuffle([...recipes]) // ✅ สุ่มทั้งหมดใหม่ทุกครั้ง
 }
 </script>
 
 <style scoped>
 .random-menu-container {
-  max-width: 600px;
+  max-width: 700px;
   margin: 2rem auto;
   background: #f4f7ff;
   padding: 2rem;
