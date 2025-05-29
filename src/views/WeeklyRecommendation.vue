@@ -41,7 +41,8 @@ import Multiselect from 'vue-multiselect'
 import { useRouter } from 'vue-router'
 import recipes from '@/data/recipes.json'
 import { db } from '@/firebase/firebaseConfig'
-import { collection, addDoc, serverTimestamp, getDocs } from 'firebase/firestore'
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
+import { getAuth } from 'firebase/auth'
 import { recommendMenus } from '@/utils/recommend'
 
 const selectedMeats = ref([])
@@ -72,6 +73,16 @@ const spiceOptions = [
 ]
 
 const handleSubmit = async () => {
+  const auth = getAuth()
+  const user = auth.currentUser
+
+  if (!user) {
+    alert('❌ กรุณา login ก่อนทำรายการ')
+    return
+  }
+
+  console.log("👤 currentUser:", user.uid, user.email)
+
   const userProfile = {
     preferred_meats: selectedMeats.value.map(m => m.name),
     preferred_veggies: selectedVeggies.value.map(v => v.name),
@@ -81,25 +92,36 @@ const handleSubmit = async () => {
     disliked_dishes: []
   }
 
-  const snapshot = await getDocs(collection(db, 'recommend_logs'))
-  const logs = snapshot.docs.map(doc => doc.data())
-
-  const resultData = recommendMenus(userProfile, recipes, logs)
+  const resultData = recommendMenus(userProfile, recipes, []) // ส่ง [] แทน logs เพราะไม่ได้ใช้ logs ตอนนี้
   const shuffled = [...resultData].sort(() => Math.random() - 0.5)
   const final7 = shuffled.slice(0, 7)
 
-  await addDoc(collection(db, 'recommend_logs'), {
-    timestamp: serverTimestamp(),
-    userProfile,
-    resultData: final7
-  })
+  try {
+    console.log("🔥 ADDING TO Firestore:", {
+      email: user.email,
+      userProfile,
+      resultData: final7
+    })
 
-  router.push({
-    path: '/menu-result',
-    query: {
-      result: JSON.stringify(final7)
-    }
-  })
+    await addDoc(collection(db, 'recommend_logs'), {
+      email: user.email,
+      timestamp: serverTimestamp(),
+      userProfile,
+      resultData: final7
+    })
+
+    console.log('✅ เขียน log ลง firestore แล้ว')
+
+    router.push({
+      path: '/menu-result',
+      query: {
+        result: JSON.stringify(final7)
+      }
+    })
+  } catch (err) {
+    console.error('❌ Firestore error:', err.code, err.message)
+    alert('เกิดข้อผิดพลาดในการส่งข้อมูล กรุณาลองใหม่')
+  }
 }
 </script>
 

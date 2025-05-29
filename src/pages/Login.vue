@@ -6,7 +6,10 @@
       <input v-model="password" type="password" placeholder="รหัสผ่าน" required />
       <button type="submit">เข้าสู่ระบบ</button>
     </form>
-    <p class="note">ยังไม่มีบัญชี? <a @click.prevent="registerUser" href="#">สมัครสมาชิก</a></p>
+    <p class="note">
+      ยังไม่มีบัญชี?
+      <a @click.prevent="goToSignup" href="#">สมัครสมาชิก</a>
+    </p>
   </div>
 </template>
 
@@ -24,7 +27,6 @@ const loginUser = async () => {
     const auth = getAuth()
     await signInWithEmailAndPassword(auth, email.value, password.value)
 
-    // ✅ เพิ่มจำนวนการใช้งาน (workouts) โดยไม่เปลี่ยนโครงสร้างเดิม
     const existing = JSON.parse(localStorage.getItem('user') || '{}')
     const newCount = (existing.workouts || 0) + 1
 
@@ -41,6 +43,7 @@ const loginUser = async () => {
   }
 }
 
+// ✅ ไม่ลบ registerUser ตามคำขอเดิม
 const registerUser = async () => {
   try {
     const auth = getAuth()
@@ -56,6 +59,13 @@ const registerUser = async () => {
     router.push('/dashboard')
   } catch (error) {
     alert('❌ สมัครไม่สำเร็จ: ' + error.message)
+  }
+}
+
+// ✅ ฟังก์ชันเปลี่ยนหน้าแบบไม่ซ้อน hash
+const goToSignup = () => {
+  if (router.currentRoute.value.path !== '/signup') {
+    router.replace({ path: '/signup' })
   }
 }
 </script>

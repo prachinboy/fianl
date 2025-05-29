@@ -8,6 +8,7 @@ import WeeklyRecommendation from '../views/WeeklyRecommendation.vue'
 import RandomMenu from '../pages/RandomMenu.vue'
 import Dashboard from '../pages/Dashboard.vue'
 import MenuResult from '../pages/MenuResult.vue'
+import Settings from '@/pages/Settings.vue'
 
 const routes = [
   { path: '/', redirect: '/signup' },
@@ -18,7 +19,8 @@ const routes = [
   { path: '/random-menu', component: RandomMenu },
   { path: '/dashboard', component: Dashboard, meta: { requiresAuth: true } },
   { path: '/menu-result', component: MenuResult },
-  { path: '/admin/add-menu', component: AddMenu }
+  { path: '/admin/add-menu', component: AddMenu },
+  { path: '/settings', component: Settings }
 ]
 
 const router = createRouter({
