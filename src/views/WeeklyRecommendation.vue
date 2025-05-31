@@ -44,6 +44,13 @@ import { db } from '@/firebase/firebaseConfig'
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
 import { getAuth } from 'firebase/auth'
 import { recommendMenus } from '@/utils/recommend'
+import {
+  fetchLogs,
+  transformToTransactions,
+  runApriori,
+  suggestFromApriori
+} from '@/utils/apriori'
+
 
 const selectedMeats = ref([])
 const selectedVeggies = ref([])
@@ -76,6 +83,8 @@ const handleSubmit = async () => {
   const auth = getAuth()
   const user = auth.currentUser
 
+
+
   if (!user) {
     alert('❌ กรุณา login ก่อนทำรายการ')
     return
@@ -92,7 +101,21 @@ const handleSubmit = async () => {
     disliked_dishes: []
   }
 
-  const resultData = recommendMenus(userProfile, recipes, []) // ส่ง [] แทน logs เพราะไม่ได้ใช้ logs ตอนนี้
+  const logs = await fetchLogs()
+  const transactions = transformToTransactions(logs)
+  const rules = await runApriori(transactions)
+  const aprioriSuggestions = suggestFromApriori(userProfile.liked_dishes, rules)
+
+  console.log('🔥 Apriori rules:', rules)
+  console.log('🔥 Apriori suggestions:', aprioriSuggestions)
+
+  const resultData = recommendMenus(userProfile, recipes, logs)
+  resultData.forEach(menu => {
+    if (aprioriSuggestions.includes(menu.name)) {
+      menu.score += 1.5
+    }
+  })
+
   const shuffled = [...resultData].sort(() => Math.random() - 0.5)
   const final7 = shuffled.slice(0, 7)
 
