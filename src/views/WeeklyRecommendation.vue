@@ -51,7 +51,6 @@ import {
   suggestFromApriori
 } from '@/utils/apriori'
 
-
 const selectedMeats = ref([])
 const selectedVeggies = ref([])
 const selectedCookingMethods = ref([])
@@ -83,14 +82,10 @@ const handleSubmit = async () => {
   const auth = getAuth()
   const user = auth.currentUser
 
-
-
   if (!user) {
     alert('❌ กรุณา login ก่อนทำรายการ')
     return
   }
-
-  console.log("👤 currentUser:", user.uid, user.email)
 
   const userProfile = {
     preferred_meats: selectedMeats.value.map(m => m.name),
@@ -110,35 +105,30 @@ const handleSubmit = async () => {
   console.log('🔥 Apriori suggestions:', aprioriSuggestions)
 
   const resultData = recommendMenus(userProfile, recipes, logs)
+
   resultData.forEach(menu => {
     if (aprioriSuggestions.includes(menu.name)) {
       menu.score += 1.5
     }
   })
 
-  const shuffled = [...resultData].sort(() => Math.random() - 0.5)
-  const final7 = shuffled.slice(0, 7)
+  const sorted = resultData
+    .filter(m => m.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 7)
 
   try {
-    console.log("🔥 ADDING TO Firestore:", {
-      email: user.email,
-      userProfile,
-      resultData: final7
-    })
-
     await addDoc(collection(db, 'recommend_logs'), {
       email: user.email,
       timestamp: serverTimestamp(),
       userProfile,
-      resultData: final7
+      resultData: sorted
     })
-
-    console.log('✅ เขียน log ลง firestore แล้ว')
 
     router.push({
       path: '/menu-result',
       query: {
-        result: JSON.stringify(final7)
+        result: JSON.stringify(sorted)
       }
     })
   } catch (err) {
