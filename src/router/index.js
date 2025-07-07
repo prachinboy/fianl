@@ -10,6 +10,9 @@ import Dashboard from '../pages/Dashboard.vue'
 import MenuResult from '../pages/MenuResult.vue'
 import Settings from '@/pages/Settings.vue'
 
+// ✅ เพิ่มหน้านี้เข้ามา
+const SearchRecipe = () => import('@/views/SearchRecipe.vue')
+
 const routes = [
   { path: '/', redirect: '/signup' },
   { path: '/signup', component: SignUp },
@@ -20,11 +23,14 @@ const routes = [
   { path: '/dashboard', component: Dashboard, meta: { requiresAuth: true } },
   { path: '/menu-result', component: MenuResult },
   { path: '/admin/add-menu', component: AddMenu },
-  { path: '/settings', component: Settings }
+  { path: '/settings', component: Settings },
+  { path: '/search', component: SearchRecipe },
+  { path: '/home', component: () => import('@/pages/Home.vue') }
+
 ]
 
 const router = createRouter({
-  history: createWebHashHistory(), // ✅ เปลี่ยนตรงนี้
+  history: createWebHashHistory(),
   routes
 })
 

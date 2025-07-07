@@ -1,9 +1,13 @@
 <template>
-  <router-view />
+  <div>
+    <Navbar />  <!-- ✅ เพิ่มส่วนนี้ -->
+    <router-view />
+  </div>
 </template>
 
 <script setup>
 import { onMounted } from 'vue'
+import Navbar from './components/Navbar.vue'  // ✅ เพิ่มส่วนนี้
 
 onMounted(() => {
   const savedTheme = localStorage.getItem('theme') || 'light'
