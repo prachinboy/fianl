@@ -1,15 +1,41 @@
 <template>
-  <div class="login-container">
-    <h1>เข้าสู่ระบบ</h1>
-    <form @submit.prevent="loginUser" class="login-form">
-      <input v-model="email" type="email" placeholder="อีเมล" required />
-      <input v-model="password" type="password" placeholder="รหัสผ่าน" required />
-      <button type="submit">เข้าสู่ระบบ</button>
-    </form>
-    <p class="note">
-      ยังไม่มีบัญชี?
-      <a @click.prevent="goToSignup" href="#">สมัครสมาชิก</a>
-    </p>
+  <div class="min-h-screen flex items-center justify-center bg-gradient-to-tr from-purple-100 via-white to-indigo-200 px-4">
+    <div class="bg-gradient-to-br from-white to-indigo-50 rounded-2xl shadow-xl overflow-hidden w-full max-w-4xl flex flex-col md:flex-row">
+
+      <!-- Illustration Side -->
+      <div class="hidden md:flex items-center justify-center w-full md:w-1/2 bg-gradient-to-br from-indigo-500 to-purple-500 p-8">
+        <img src="https://cdn-icons-png.flaticon.com/512/1046/1046857.png" alt="login" class="w-3/4 max-w-xs" />
+      </div>
+
+      <!-- Form Side -->
+      <div class="w-full md:w-1/2 p-8">
+        <div class="text-right text-sm mb-2">
+          <span class="text-gray-500">ยังไม่มีบัญชี?</span>
+          <button @click.prevent="goToSignup" class="ml-2 px-3 py-1 rounded-full border border-indigo-300 bg-indigo-50 text-indigo-600 font-medium hover:bg-indigo-100 transition">
+            สมัครสมาชิก
+          </button>
+        </div>
+
+        <h2 class="text-2xl font-bold text-indigo-800 mb-1">เข้าสู่ระบบ</h2>
+        <p class="text-sm text-gray-500 mb-6">กรอกอีเมลและรหัสผ่านเพื่อเข้าสู่ระบบ</p>
+
+        <form @submit.prevent="loginUser" class="space-y-5">
+          <div>
+            <label class="block text-sm font-semibold text-gray-700 mb-1">อีเมล</label>
+            <input v-model="email" type="email" placeholder="อีเมล" required class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-300" />
+          </div>
+
+          <div>
+            <label class="block text-sm font-semibold text-gray-700 mb-1">รหัสผ่าน</label>
+            <input v-model="password" type="password" placeholder="รหัสผ่าน" required class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-300" />
+          </div>
+
+          <button type="submit" class="w-full bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 text-white font-semibold py-2 rounded-lg shadow-md transition">
+            เข้าสู่ระบบ
+          </button>
+        </form>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -43,7 +69,6 @@ const loginUser = async () => {
   }
 }
 
-// ✅ ไม่ลบ registerUser ตามคำขอเดิม
 const registerUser = async () => {
   try {
     const auth = getAuth()
@@ -62,7 +87,6 @@ const registerUser = async () => {
   }
 }
 
-// ✅ ฟังก์ชันเปลี่ยนหน้าแบบไม่ซ้อน hash
 const goToSignup = () => {
   if (router.currentRoute.value.path !== '/signup') {
     router.replace({ path: '/signup' })
@@ -71,45 +95,5 @@ const goToSignup = () => {
 </script>
 
 <style scoped>
-.login-container {
-  max-width: 400px;
-  margin: 3rem auto;
-  background: #f4f7ff;
-  padding: 2rem;
-  border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-  text-align: center;
-}
-
-.login-container h1 {
-  color: #6c63ff;
-  margin-bottom: 1.5rem;
-}
-
-.login-form input {
-  width: 100%;
-  padding: 0.75rem;
-  margin-bottom: 1rem;
-  border: 1px solid #ccc;
-  border-radius: 8px;
-}
-
-.login-form button {
-  width: 100%;
-  padding: 0.75rem;
-  background-color: #6c63ff;
-  color: white;
-  border: none;
-  border-radius: 8px;
-  font-weight: bold;
-  cursor: pointer;
-}
-
-.login-form button:hover {
-  background-color: #5146d8;
-}
-
-.note {
-  margin-top: 1rem;
-}
+/* ใช้ Tailwind CSS ทั้งหมด */
 </style>

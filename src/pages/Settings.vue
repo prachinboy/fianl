@@ -1,41 +1,49 @@
 <template>
-  <div class="settings-container">
-    <h2>⚙️ ตั้งค่าผู้ใช้</h2>
+  <div class="min-h-screen bg-gradient-to-br from-indigo-100 via-white to-purple-100 py-8 px-4">
+    <div class="max-w-xl mx-auto bg-white rounded-2xl shadow-xl p-6">
+      <h2 class="text-2xl font-bold text-indigo-700 mb-6 flex items-center gap-2">
+        <span>⚙️</span> ตั้งค่าผู้ใช้
+      </h2>
 
-    <!-- รูปโปรไฟล์ -->
-    <div class="section">
-      <label>อัปโหลดรูปโปรไฟล์:</label>
-      <input type="file" accept="image/*" @change="handleFileUpload" />
-      <div v-if="avatarUrl">
-        <p>🎉 แสดงรูปโปรไฟล์:</p>
-        <img :src="avatarUrl" alt="Avatar" class="avatar-preview" />
+      <!-- รูปโปรไฟล์ -->
+      <div class="mb-6">
+        <label class="block text-gray-700 font-semibold mb-2">📸 อัปโหลดรูปโปรไฟล์:</label>
+        <input type="file" accept="image/*" @change="handleFileUpload" class="mb-3" />
+        <div v-if="avatarUrl">
+          <img :src="avatarUrl" alt="Avatar" class="w-24 h-24 rounded-full object-cover border-2 border-indigo-400 shadow" />
+        </div>
       </div>
-    </div>
 
-    <!-- เปลี่ยนชื่อแสดง -->
-    <div class="section">
-      <label>ชื่อที่แสดง:</label>
-      <input v-model="displayName" type="text" placeholder="กรอกชื่อของคุณ..." />
-    </div>
+      <!-- ชื่อที่แสดง -->
+      <div class="mb-4">
+        <label class="block text-gray-700 font-semibold mb-1">ชื่อที่แสดง:</label>
+        <input v-model="displayName" type="text" placeholder="กรอกชื่อของคุณ..." class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300" />
+      </div>
 
-    <!-- bio -->
-    <div class="section">
-      <label>ข้อมูลเกี่ยวกับตัวคุณ (bio):</label>
-      <textarea v-model="bio" placeholder="เช่น: ชอบทำอาหารคลีน..."></textarea>
-    </div>
+      <!-- bio -->
+      <div class="mb-6">
+        <label class="block text-gray-700 font-semibold mb-1">ข้อมูลเกี่ยวกับตัวคุณ (bio):</label>
+        <textarea v-model="bio" placeholder="เช่น: ชอบทำอาหารคลีน..." class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300"></textarea>
+      </div>
 
-    <button @click="saveProfile">บันทึกข้อมูลโปรไฟล์</button>
+      <!-- บันทึก -->
+      <button @click="saveProfile" class="w-full py-2.5 bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 text-white font-medium rounded-xl shadow transition mb-8">
+        💾 บันทึกข้อมูลโปรไฟล์
+      </button>
 
-    <!-- ล้างเมนูที่เคยกดหัวใจ -->
-    <div class="section">
-      <p>🗑 ล้างเมนูที่คุณเคยกดหัวใจ</p>
-      <button @click="clearLikedMenus">ล้าง ❤️ ทั้งหมด</button>
-    </div>
+      <div class="grid sm:grid-cols-2 gap-4">
+        <!-- ล้างหัวใจ -->
+        <div class="bg-red-50 border border-red-200 p-4 rounded-xl shadow">
+          <p class="text-red-600 font-semibold mb-2">🗑 ล้างเมนูที่คุณเคยกดหัวใจ</p>
+          <button @click="clearLikedMenus" class="w-full py-2 bg-red-500 text-white rounded-lg hover:bg-red-600">ล้าง ❤️ ทั้งหมด</button>
+        </div>
 
-    <!-- เปลี่ยนธีม -->
-    <div class="section">
-      <p>🌗 ธีมปัจจุบัน: <strong>{{ theme }}</strong></p>
-      <button @click="toggleTheme">เปลี่ยนธีม</button>
+        <!-- ธีม -->
+        <div class="bg-yellow-50 border border-yellow-200 p-4 rounded-xl shadow">
+          <p class="text-yellow-700 font-semibold mb-2">🎨 ธีมปัจจุบัน: <strong>{{ theme }}</strong></p>
+          <button @click="toggleTheme" class="w-full py-2 bg-yellow-400 text-white rounded-lg hover:bg-yellow-500">เปลี่ยนธีม</button>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -77,33 +85,21 @@ onMounted(() => {
 })
 
 const saveProfile = async () => {
-  console.log('✅ saveProfile ถูกเรียก')
-
   const auth = getAuth()
   const user = auth.currentUser
-  if (!user) {
-    console.warn('❌ ไม่มีผู้ใช้ login อยู่')
-    return alert('ยังไม่ได้ login')
-  }
-
-  const email = user.email
-  console.log('📧 email:', email)
-  console.log('📛 displayName:', displayName.value)
-  console.log('📝 bio:', bio.value)
-  console.log('🖼 avatarUrl:', avatarUrl.value)
+  if (!user) return alert('ยังไม่ได้ login')
 
   try {
-    await setDoc(doc(db, 'users', email), {
+    await setDoc(doc(db, 'users', user.email), {
       displayName: displayName.value,
       bio: bio.value,
       avatarUrl: avatarUrl.value,
-      email: email,
+      email: user.email,
       updatedAt: serverTimestamp()
     }, { merge: true })
 
     alert('✅ บันทึกข้อมูลโปรไฟล์เรียบร้อย')
   } catch (err) {
-    console.error('❌ setDoc error:', err)
     alert('❌ เกิดข้อผิดพลาดในการบันทึก')
   }
 }
@@ -135,55 +131,5 @@ const handleFileUpload = async (event) => {
 </script>
 
 <style scoped>
-.settings-container {
-  max-width: 600px;
-  margin: 2rem auto;
-  background: #fff;
-  padding: 2rem;
-  border-radius: 12px;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-  font-family: sans-serif;
-}
-
-h2 {
-  margin-bottom: 1.5rem;
-  color: #333;
-}
-
-.section {
-  margin-bottom: 1.5rem;
-}
-
-input,
-textarea {
-  width: 100%;
-  padding: 0.6rem;
-  margin-top: 0.3rem;
-  margin-bottom: 0.6rem;
-  font-size: 1rem;
-  border: 1px solid #ccc;
-  border-radius: 6px;
-}
-
-.avatar-preview {
-  width: 100px;
-  height: 100px;
-  object-fit: cover;
-  border-radius: 50%;
-  margin-top: 0.5rem;
-  border: 2px solid #ccc;
-}
-
-button {
-  padding: 0.5rem 1rem;
-  background: #6c63ff;
-  color: white;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-}
-
-button:hover {
-  background: #5548c8;
-}
+/* ใช้ Tailwind CSS ทั้งหมด */
 </style>

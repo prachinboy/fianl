@@ -1,13 +1,13 @@
 <template>
   <div class="random-menu-container">
-    <h1>สุ่มเมนูทั้งหมดจากระบบ</h1>
+    <h1>สุ่มเมนูจากระบบ</h1>
     <button @click="getRandomFood">สุ่มเมนูทั้งหมด</button>
 
-    <div v-if="randomFoods.length" class="result" v-for="(food, index) in randomFoods" :key="index">
-      <p><strong>ชื่อเมนู:</strong> {{ food.name }}</p>
-      <p><strong>วัตถุดิบ:</strong> {{ food.ingredients.join(', ') }}</p>
-      <p><strong>วิธีทำ:</strong> {{ food.method }}</p>
-      <p><strong>แคลอรี่:</strong> {{ food.calories }} kcal</p>
+    <div v-if="randomFood" class="result">
+      <p><strong>ชื่อเมนู:</strong> {{ randomFood.name }}</p>
+      <p><strong>วัตถุดิบ:</strong> {{ randomFood.ingredients.join(', ') }}</p>
+      <p><strong>วิธีทำ:</strong> {{ randomFood.method }}</p>
+      <p><strong>แคลอรี่:</strong> {{ randomFood.calories }} kcal</p>
     </div>
   </div>
 </template>
@@ -16,19 +16,11 @@
 import { ref } from 'vue'
 import recipes from '@/data/recipes.json'
 
-const randomFoods = ref([])
-
-// Fisher-Yates shuffle
-const shuffle = (array) => {
-  for (let i = array.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1))
-    ;[array[i], array[j]] = [array[j], array[i]]
-  }
-  return array
-}
+const randomFood = ref(null)
 
 const getRandomFood = () => {
-  randomFoods.value = shuffle([...recipes]) // ✅ สุ่มทั้งหมดใหม่ทุกครั้ง
+  const index = Math.floor(Math.random() * recipes.length)
+  randomFood.value = recipes[index]
 }
 </script>
 

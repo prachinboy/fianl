@@ -1,34 +1,71 @@
 <template>
-  <div class="menu-results-container">
-    <h1>เมนูอาหารที่คุณสามารถทำได้ (ในสัปดาห์นี้)</h1>
+  <div class="min-h-screen bg-gradient-to-br from-[#e0e7ff] via-white to-[#fff0f6] py-12 px-4">
+    <h1 class="text-4xl font-bold text-center text-indigo-700 mb-12 tracking-tight">
+      🍽️ เมนูอาหารแนะนำสำหรับสัปดาห์นี้
+    </h1>
 
-    <!-- ตารางแสดงผลเมนูอาหารรายสัปดาห์ -->
-    <div v-if="menuItems.length">
-      <table class="menu-table">
-        <thead>
-          <tr>
-            <th>วัน</th>
-            <th>เมนูอาหาร</th>
-            <th>ประเภท</th>
-            <th>คะแนน</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="(item, index) in menuItems" :key="index">
-            <td>{{ item.day }}</td>
-            <td>
+    <div v-if="menuItems.length" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-10 max-w-7xl mx-auto">
+      <div
+        v-for="(item, index) in menuItems"
+        :key="index"
+        :class="[
+          'rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 overflow-hidden flex flex-col border border-gray-200',
+          colorClasses[index % colorClasses.length]
+        ]"
+      >
+        <!-- รูปเมนู (placeholder) -->
+        <div class="h-48 bg-gray-100 flex items-center justify-center">
+          <img
+            src="https://via.placeholder.com/400x200.png?text=เมนูอาหาร"
+            alt="เมนูอาหาร"
+            class="object-cover h-full w-full rounded-t-2xl"
+          />
+        </div>
+
+        <!-- เนื้อหาเมนู -->
+        <div class="p-6 flex flex-col justify-between flex-1 gap-4">
+          <!-- Header Row -->
+          <div class="flex items-center justify-between">
+            <span class="inline-flex items-center px-3 py-1 text-xs font-medium bg-white/80 text-gray-700 rounded-full shadow-sm">
+              📅 {{ item.day }}
+            </span>
+            <span class="inline-flex items-center px-3 py-1 text-xs font-medium bg-white/80 text-gray-700 rounded-full shadow-sm">
+              🍱 {{ item.type }}
+            </span>
+          </div>
+
+          <!-- Title -->
+          <div class="flex items-center justify-between">
+            <h2 class="text-lg font-semibold text-gray-900">
               {{ item.name }}
-              <button @click="likeMenu(item.name)" class="like-btn">❤️</button>
-              <ReviewBox :menuName="item.name" />
-            </td>
-            <td>{{ item.type }}</td>
-            <td>{{ item.score ?? '-' }}</td>
-          </tr>
-        </tbody>
-      </table>
+            </h2>
+            <button
+              @click="likeMenu(item.name)"
+              class="text-xl text-gray-400 hover:text-rose-500 transition-colors"
+              title="ถูกใจเมนูนี้"
+            >❤️</button>
+          </div>
+
+          <!-- Score -->
+          <div class="text-sm text-gray-700">
+            คะแนน: <span class="font-medium text-yellow-600">{{ item.score ?? '-' }}</span>
+          </div>
+
+          <!-- Review Box -->
+          <ReviewBox :menuName="item.name" />
+
+          <!-- Button -->
+          <button
+            class="mt-4 w-full py-2 rounded-md bg-indigo-600 text-white font-medium hover:bg-indigo-700 transition"
+          >
+            ดูรายละเอียดเมนู
+          </button>
+        </div>
+      </div>
     </div>
-    <div v-else>
-      <p>ไม่มีเมนูที่สามารถทำได้ในสัปดาห์นี้</p>
+
+    <div v-else class="text-center text-gray-500">
+      ไม่มีเมนูที่สามารถทำได้ในสัปดาห์นี้
     </div>
   </div>
 </template>
@@ -45,15 +82,27 @@ const route = useRoute()
 const raw = route.query.result ? JSON.parse(route.query.result) : []
 
 const days = ['จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์', 'อาทิตย์']
-
 const shuffled = [...raw].sort(() => Math.random() - 0.5)
 
-const menuItems = ref(days.map((day, index) => ({
-  day,
-  name: shuffled[index]?.name ?? '-',
-  type: shuffled[index]?.type ?? '-',
-  score: shuffled[index]?.score ?? '-'
-})))
+const menuItems = ref(
+  days.map((day, index) => ({
+    day,
+    name: shuffled[index]?.name ?? '-',
+    type: shuffled[index]?.type ?? '-',
+    score: shuffled[index]?.score ?? '-'
+  }))
+)
+
+const colorClasses = [
+  'bg-red-50',
+  'bg-orange-50',
+  'bg-yellow-50',
+  'bg-green-50',
+  'bg-blue-50',
+  'bg-indigo-50',
+  'bg-purple-50',
+  'bg-pink-50'
+]
 
 const likeMenu = async (menuName) => {
   const auth = getAuth()
@@ -73,70 +122,5 @@ const likeMenu = async (menuName) => {
 </script>
 
 <style scoped>
-.menu-results-container {
-  max-width: 900px;
-  margin: 2rem auto;
-  text-align: center;
-  background: #f9f9f9;
-  padding: 2rem;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-h1 {
-  font-size: 2rem;
-  color: #6c63ff;
-  margin-bottom: 1.5rem;
-}
-
-.menu-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin: 0 auto;
-  text-align: left;
-}
-
-.menu-table th,
-.menu-table td {
-  padding: 12px;
-  border: 1px solid #ddd;
-  border-radius: 6px;
-}
-
-.menu-table th {
-  background-color: #6c63ff;
-  color: white;
-  font-weight: bold;
-}
-
-.menu-table tr:nth-child(even) {
-  background-color: #f3f3f3;
-}
-
-.menu-table tr:nth-child(odd) {
-  background-color: #fafafa;
-}
-
-.menu-table tr:hover {
-  background-color: #f2f2f2;
-}
-
-.menu-table td {
-  font-size: 1.1rem;
-}
-
-.menu-table td:nth-child(2) {
-  font-weight: bold;
-}
-
-.like-btn {
-  margin-left: 0.5rem;
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-size: 1.1rem;
-}
-.like-btn:hover {
-  color: #ff3e75;
-}
+/* ใช้ Tailwind CSS เต็มที่ */
 </style>

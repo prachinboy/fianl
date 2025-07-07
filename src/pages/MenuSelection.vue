@@ -1,116 +1,51 @@
 <template>
-  <div class="menu-selection-container">
-    <div class="title-box">
-      <h1>เลือกประเภทเมนูที่คุณชอบ</h1>
-      <p>กรุณาเลือกประเภทเมนูหรือเมนูที่คุณต้องการแนะนำ</p>
-    </div>
+  <div class="min-h-screen bg-gradient-to-br from-[#d8d5f2] via-[#e4e2f0] to-[#d0d3e4] flex items-center justify-center px-4 py-12">
+    <div class="max-w-3xl w-full bg-white/80 backdrop-blur-md rounded-2xl shadow-xl p-8">
+      <div class="text-center mb-8">
+        <h1 class="text-3xl font-bold text-indigo-700 mb-2">🍽️ เลือกรูปแบบการแนะนำเมนู</h1>
+        <p class="text-gray-700">กรุณาเลือกประเภทเมนูอาหารที่คุณต้องการให้ระบบแนะนำ</p>
+      </div>
 
-    <!-- ปุ่มสำหรับแนะนำเมนูรายสัปดาห์ -->
-    <div class="menu-option">
-      <button @click="goToWeeklyRecommendation" class="menu-button">
-        <span class="menu-button-text">แนะนำเมนูอาหารรายสัปดาห์</span>
-      </button>
-    </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <button
+          @click="goToWeeklyRecommendation"
+          class="rounded-xl bg-gradient-to-r from-indigo-400 to-indigo-600 text-white py-6 px-4 shadow-lg hover:scale-105 transition-transform"
+        >
+          <div class="flex flex-col items-center">
+            <span class="text-4xl mb-2">📅</span>
+            <span class="text-lg font-semibold">แนะนำเมนูอาหารรายสัปดาห์</span>
+            <span class="text-sm mt-1 text-white/90">เหมาะกับผู้ที่ต้องการวางแผนอาหารล่วงหน้า</span>
+          </div>
+        </button>
 
-    <!-- ปุ่มสำหรับสุ่มเมนู -->
-    <div class="menu-option">
-      <button @click="goToRandomMenu" class="menu-button">
-        <span class="menu-button-text">สุ่มเมนูอาหาร</span>
-      </button>
+        <button
+          @click="goToRandomMenu"
+          class="rounded-xl bg-gradient-to-r from-pink-400 to-rose-500 text-white py-6 px-4 shadow-lg hover:scale-105 transition-transform"
+        >
+          <div class="flex flex-col items-center">
+            <span class="text-4xl mb-2">🍲</span> <!-- เปลี่ยนจาก 🍜 เป็น 🍲 -->
+            <span class="text-lg font-semibold">สุ่มเมนูอาหาร</span>
+            <span class="text-sm mt-1 text-white/90">เหมาะสำหรับผู้ที่ต้องการลองอะไรใหม่</span>
+          </div>
+        </button>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup>
 import { useRouter } from 'vue-router'
-
 const router = useRouter()
 
-// ไปที่หน้าแนะนำเมนูอาหารรายสัปดาห์
 const goToWeeklyRecommendation = () => {
   router.push('/weekly-recommendation')
 }
 
-// ไปที่หน้าสุ่มเมนูอาหาร
 const goToRandomMenu = () => {
   router.push('/random-menu')
 }
 </script>
 
 <style scoped>
-.menu-selection-container {
-  min-height: 100vh;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  flex-direction: column;
-  background: linear-gradient(135deg, #6c63ff, #f5c3e7);
-  padding: 2rem;
-  border-radius: 15px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-  transition: all 0.3s ease;
-}
-
-.title-box {
-  text-align: center;
-  color: white;
-  margin-bottom: 2rem;
-}
-
-h1 {
-  font-size: 2.5rem;
-  font-weight: 600;
-  margin-bottom: 1rem;
-}
-
-p {
-  font-size: 1.1rem;
-  margin-bottom: 1.5rem;
-}
-
-.menu-option {
-  margin-bottom: 1.5rem;
-}
-
-.menu-button {
-  width: 80%;
-  padding: 1.2rem;
-  background-color: #6c63ff;
-  color: white;
-  border: none;
-  border-radius: 12px;
-  font-weight: bold;
-  font-size: 1.2rem;
-  cursor: pointer;
-  transition: background-color 0.3s ease, transform 0.2s ease;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-}
-
-.menu-button:hover {
-  background-color: #5548c8;
-  transform: scale(1.05);
-}
-
-.menu-button:focus {
-  outline: none;
-  box-shadow: 0 0 0 3px rgba(108, 99, 255, 0.5);
-}
-
-.menu-button-text {
-  display: block;
-  text-align: center;
-}
-
-@media (max-width: 600px) {
-  .menu-button {
-    width: 90%;
-    font-size: 1rem;
-  }
-  h1 {
-    font-size: 2rem;
-  }
-  p {
-    font-size: 1rem;
-  }
-}
+/* ใช้ Tailwind CSS ทั้งหมด */
 </style>

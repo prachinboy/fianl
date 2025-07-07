@@ -1,25 +1,45 @@
 <template>
-  <div class="signup-container">
-    <div class="form-box">
-      <h1>สมัครสมาชิกนะจ๊ะ</h1>
-      <form @submit.prevent="handleSubmit">
-        <div class="form-group">
-          <label>ชื่อผู้ใช้</label>
-          <input v-model="username" type="text" placeholder="กรอกชื่อผู้ใช้" required />
+  <div class="min-h-screen flex items-center justify-center bg-gradient-to-tr from-indigo-200 via-white to-purple-200 px-4">
+    <div class="bg-gradient-to-br from-indigo-100 via-white to-pink-100 rounded-2xl shadow-xl overflow-hidden w-full max-w-4xl flex flex-col md:flex-row">
+
+      <!-- Illustration Side -->
+      <div class="hidden md:flex items-center justify-center w-full md:w-1/2 bg-gradient-to-br from-indigo-500 to-purple-500 p-8">
+        <img src="https://cdn-icons-png.flaticon.com/512/3075/3075977.png" alt="signup" class="w-3/4 max-w-xs" />
+      </div>
+
+      <!-- Form Side -->
+      <div class="w-full md:w-1/2 p-8">
+        <div class="text-right text-sm mb-2">
+          <span class="text-gray-500">มีบัญชีอยู่แล้ว?</span>
+          <router-link to="/login" class="ml-2 px-3 py-1 rounded-full border border-indigo-300 bg-indigo-50 text-indigo-600 font-medium hover:bg-indigo-100 transition">
+            เข้าสู่ระบบ
+          </router-link>
         </div>
-        <div class="form-group">
-          <label>อีเมล</label>
-          <input v-model="email" type="email" placeholder="กรอกอีเมล" required />
-        </div>
-        <div class="form-group">
-          <label>รหัสผ่าน</label>
-          <input v-model="password" type="password" placeholder="กรอกรหัสผ่าน" required />
-        </div>
-        <button type="submit" class="signup-button">สมัครสมาชิก</button>
-      </form>
-      <p class="login-link">
-        มีบัญชีอยู่แล้ว? <router-link to="/login">เข้าสู่ระบบ</router-link>
-      </p>
+
+        <h2 class="text-2xl font-bold text-indigo-800 mb-1">ยินดีต้อนรับ!</h2>
+        <p class="text-sm text-gray-500 mb-6">สมัครสมาชิกเพื่อเริ่มต้นใช้งาน</p>
+
+        <form @submit.prevent="handleSubmit" class="space-y-5">
+          <div>
+            <label class="block text-sm font-semibold text-gray-700 mb-1">ชื่อผู้ใช้</label>
+            <input v-model="username" type="text" placeholder="กรอกชื่อผู้ใช้" required class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-300" />
+          </div>
+
+          <div>
+            <label class="block text-sm font-semibold text-gray-700 mb-1">อีเมล</label>
+            <input v-model="email" type="email" placeholder="กรอกอีเมล" required class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-300" />
+          </div>
+
+          <div>
+            <label class="block text-sm font-semibold text-gray-700 mb-1">รหัสผ่าน</label>
+            <input v-model="password" type="password" placeholder="กรอกรหัสผ่าน" required class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-300" />
+          </div>
+
+          <button type="submit" class="w-full bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 text-white font-semibold py-2 rounded-lg shadow-md transition">
+            สมัครสมาชิก
+          </button>
+        </form>
+      </div>
     </div>
   </div>
 </template>
@@ -62,70 +82,5 @@ const handleSubmit = async () => {
 </script>
 
 <style scoped>
-.signup-container {
-  min-height: 100vh;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  background: linear-gradient(135deg, #c3ecf5, #f5c3e7);
-}
-
-.form-box {
-  background: white;
-  padding: 2rem;
-  border-radius: 1rem;
-  box-shadow: 0px 5px 20px rgba(0, 0, 0, 0.1);
-  width: 100%;
-  max-width: 400px;
-}
-
-h1 {
-  text-align: center;
-  margin-bottom: 1.5rem;
-  color: #333;
-}
-
-.form-group {
-  margin-bottom: 1.2rem;
-}
-
-label {
-  display: block;
-  margin-bottom: 0.4rem;
-  font-weight: bold;
-  color: #555;
-}
-
-input {
-  width: 100%;
-  padding: 0.5rem;
-  border: 1px solid #ddd;
-  border-radius: 0.4rem;
-}
-
-.signup-button {
-  width: 100%;
-  padding: 0.7rem;
-  background-color: #6c63ff;
-  color: white;
-  border: none;
-  border-radius: 0.5rem;
-  font-weight: bold;
-  cursor: pointer;
-  transition: background-color 0.3s ease;
-}
-
-.signup-button:hover {
-  background-color: #5548c8;
-}
-
-.login-link {
-  text-align: center;
-  margin-top: 1rem;
-}
-
-.login-link a {
-  color: #6c63ff;
-  text-decoration: underline;
-}
+/* ใช้ Tailwind CSS ทั้งหมด */
 </style>
