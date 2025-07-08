@@ -22,6 +22,11 @@
 
     <!-- Main Content -->
     <main class="flex-1 py-12 px-6 max-w-6xl mx-auto">
+      <!-- ✅ เพิ่มชื่อโปรเจกต์ไว้ด้านบนกล่อง -->
+      <div class="text-3xl font-extrabold text-orange-500 mb-6 text-center">
+        FoodReco
+      </div>
+
       <div class="bg-white rounded-3xl shadow-xl p-8">
         <!-- Welcome Section -->
         <div class="mb-6">

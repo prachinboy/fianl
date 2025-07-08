@@ -1,0 +1,71 @@
+<template>
+  <div class="min-h-screen bg-gradient-to-tr from-blue-50 via-white to-purple-50 py-12 px-6 max-w-5xl mx-auto">
+    <h1 class="text-3xl font-bold text-center text-indigo-600 mb-8">📚 ประวัติการแนะนำเมนู</h1>
+
+    <div v-if="loading" class="text-center text-gray-500">กำลังโหลด...</div>
+    <div v-else-if="recommendations.length === 0" class="text-center text-gray-500">ยังไม่มีประวัติการแนะนำ</div>
+
+    <div class="grid md:grid-cols-2 gap-6" v-else>
+      <div v-for="(rec, i) in recommendations" :key="i" class="bg-white p-4 rounded-xl shadow hover:shadow-md transition border border-indigo-200">
+        <img src="https://via.placeholder.com/400x200?text=Menu+Image" alt="menu" class="w-full h-40 object-cover rounded-lg mb-3" />
+        <h2 class="text-lg font-bold text-indigo-600 mb-1">🍽️ {{ rec.name }}</h2>
+        <p class="text-sm text-gray-600">วัตถุดิบ: {{ rec.ingredients.join(', ') }}</p>
+        <p class="text-sm text-gray-400 mt-1">📅 วันที่แนะนำ: {{ formatDate(rec.createdAt) }}</p>
+      </div>
+    </div>
+  </div>
+</template>
+
+
+<script setup>
+import { onMounted, ref } from 'vue'
+import { db } from '@/firebase/firebaseConfig'
+import { collection, query, where, getDocs } from 'firebase/firestore'
+
+const user = JSON.parse(localStorage.getItem('user') || 'null')  // ✅ ต้องได้ email
+const recommendations = ref([])
+const loading = ref(true)
+
+const fetchHistory = async () => {
+  try {
+    const q = query(
+      collection(db, 'recommend_logs'),
+      where('email', '==', user.email) // ✅ กรองเฉพาะ user นี้
+    )
+    const snapshot = await getDocs(q)
+
+    // ✅ ดึงข้อมูลเมนูจาก resultData (array)
+    const result = []
+    snapshot.forEach(doc => {
+      const data = doc.data()
+      const recs = data.resultData || []
+      recs.forEach(item => {
+        result.push({
+          ...item,
+          createdAt: data.timestamp?.seconds ? new Date(data.timestamp.seconds * 1000) : new Date(),
+        })
+      })
+    })
+
+    recommendations.value = result
+  } catch (e) {
+    console.error(e)
+  } finally {
+    loading.value = false
+  }
+}
+onMounted(() => {
+  if (user?.email) {
+    fetchHistory()
+  }
+})
+
+const formatDate = (date) => {
+  return new Date(date).toLocaleDateString('th-TH', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  })
+}
+</script>
+

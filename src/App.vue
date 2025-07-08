@@ -1,18 +1,16 @@
 <template>
-  <div>
-    <Navbar />  <!-- ✅ เพิ่มส่วนนี้ -->
-    <router-view />
-  </div>
+  <!-- ✅ แสดง Navbar เฉพาะหน้า /home -->
+  <Navbar v-if="route.path === '/home'" />
+
+  <!-- แสดงเนื้อหาแต่ละหน้า -->
+  <router-view />
 </template>
 
 <script setup>
-import { onMounted } from 'vue'
-import Navbar from './components/Navbar.vue'  // ✅ เพิ่มส่วนนี้
+import { useRoute } from 'vue-router'
+import Navbar from './components/Navbar.vue'
 
-onMounted(() => {
-  const savedTheme = localStorage.getItem('theme') || 'light'
-  document.body.className = savedTheme
-})
+const route = useRoute()
 </script>
 
 <style>

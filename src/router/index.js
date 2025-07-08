@@ -9,8 +9,8 @@ import RandomMenu from '../pages/RandomMenu.vue'
 import Dashboard from '../pages/Dashboard.vue'
 import MenuResult from '../pages/MenuResult.vue'
 import Settings from '@/pages/Settings.vue'
+import Home from '@/pages/Home.vue'
 
-// ✅ เพิ่มหน้านี้เข้ามา
 const SearchRecipe = () => import('@/views/SearchRecipe.vue')
 
 const routes = [
@@ -25,7 +25,9 @@ const routes = [
   { path: '/admin/add-menu', component: AddMenu },
   { path: '/settings', component: Settings },
   { path: '/search', component: SearchRecipe },
-  { path: '/home', component: () => import('@/pages/Home.vue') }
+  { path: '/home', component: Home },
+  { path: '/history', component: () => import('@/pages/RecommendationHistory.vue') }
+
 
 ]
 
