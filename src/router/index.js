@@ -26,9 +26,8 @@ const routes = [
   { path: '/settings', component: Settings },
   { path: '/search', component: SearchRecipe },
   { path: '/home', component: Home },
-  { path: '/history', component: () => import('@/pages/RecommendationHistory.vue') }
-
-
+  { path: '/history', component: () => import('../pages/RecommendationHistory.vue') }
+  
 ]
 
 const router = createRouter({

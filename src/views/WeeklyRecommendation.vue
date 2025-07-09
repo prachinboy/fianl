@@ -2,28 +2,35 @@
   <div class="weekly-recommendation-container">
     <h1>แนะนำเมนูอาหารรายสัปดาห์</h1>
 
+    <!-- กลุ่มวัตถุดิบ -->
     <div class="selection-box">
       <label>เลือกเนื้อสัตว์ที่ชอบ</label>
       <multiselect v-model="selectedMeats" :options="meatOptions" :multiple="true" label="name" track-by="name"
-                   class="custom-select" :close-on-select="false" placeholder="เลือกเนื้อสัตว์" />
+        class="custom-select" :close-on-select="false" placeholder="เลือกเนื้อสัตว์" />
     </div>
 
     <div class="selection-box">
       <label>เลือกผักที่ชอบ</label>
       <multiselect v-model="selectedVeggies" :options="veggieOptions" :multiple="true" label="name" track-by="name"
-                   class="custom-select" :close-on-select="false" placeholder="เลือกผัก" />
+        class="custom-select" :close-on-select="false" placeholder="เลือกผัก" />
     </div>
 
     <div class="selection-box">
       <label>เลือกประเภทการทำอาหาร</label>
       <multiselect v-model="selectedCookingMethods" :options="cookingMethods" :multiple="true" label="name" track-by="name"
-                   class="custom-select" :close-on-select="false" placeholder="เลือกประเภทการทำอาหาร" />
+        class="custom-select" :close-on-select="false" placeholder="เลือกประเภทการทำอาหาร" />
     </div>
 
     <div class="selection-box">
-      <label>เลือกเครื่องเทศที่ชอบ</label>
-      <multiselect v-model="selectedSpices" :options="spiceOptions" :multiple="true" label="name" track-by="name"
-                   class="custom-select" :close-on-select="false" placeholder="เลือกเครื่องเทศ" />
+      <label>เลือกเครื่องเทศ/สมุนไพรไทยที่ชอบ</label>
+      <multiselect v-model="selectedSpices" :options="combinedSpices" :multiple="true" label="name" track-by="name"
+        class="custom-select" :close-on-select="false" placeholder="เลือกเครื่องเทศ" />
+    </div>
+
+    <div class="selection-box">
+      <label>เลือกประเภทอาหารจาก API (Spoonacular)</label>
+      <multiselect v-model="selectedCategories" :options="apiFoodCategories" :multiple="true" label="name" track-by="name"
+        class="custom-select" :close-on-select="false" placeholder="เลือกประเภทอาหาร" />
     </div>
 
     <div class="input-box">
@@ -36,47 +43,45 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import Multiselect from 'vue-multiselect'
 import { useRouter } from 'vue-router'
-import recipes from '@/data/recipes.json'
 import { db } from '@/firebase/firebaseConfig'
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
+import { collection, addDoc, serverTimestamp, doc, getDoc } from 'firebase/firestore'
 import { getAuth } from 'firebase/auth'
-import { recommendMenus } from '@/utils/recommend'
-import {
-  fetchLogs,
-  transformToTransactions,
-  runApriori,
-  suggestFromApriori
-} from '@/utils/apriori'
+import { recommendHybrid } from '@/utils/recommendHybrid'
 
 const selectedMeats = ref([])
 const selectedVeggies = ref([])
 const selectedCookingMethods = ref([])
 const selectedSpices = ref([])
+const selectedCategories = ref([])
 const favoriteDish = ref('')
+const apiFoodCategories = ref([])
 const router = useRouter()
 
-const meatOptions = [
-  { name: 'ไก่' }, { name: 'หมู' }, { name: 'เนื้อ' }, { name: 'เป็ด' },
-  { name: 'กุ้ง' }, { name: 'ปลา' }, { name: 'หมึก' }, { name: 'ตับ' }
+// ชุดข้อมูลภายใน
+const meatOptions = [ { name: 'ไก่' }, { name: 'หมู' }, { name: 'เนื้อ' }, { name: 'เป็ด' }, { name: 'กุ้ง' }, { name: 'ปลา' }, { name: 'หมึก' }, { name: 'ตับ' } ]
+const veggieOptions = [ { name: 'ผักกาด' }, { name: 'แครอท' }, { name: 'บร็อคโคลี่' }, { name: 'เห็ด' }, { name: 'ฟักทอง' }, { name: 'บวบ' }, { name: 'ถั่วฝักยาว' }, { name: 'ผักบุ้ง' } ]
+const cookingMethods = [ { name: 'ต้ม' }, { name: 'ทอด' }, { name: 'ปิ้ง' }, { name: 'นึ่ง' }, { name: 'ผัด' }, { name: 'อบ' }, { name: 'ย่าง' }, { name: 'ยำ' } ]
+
+// รวมเครื่องเทศเดิม + สมุนไพรไทย
+const combinedSpices = [
+  { name: 'พริก' }, { name: 'กระเทียม' }, { name: 'ขิง' }, { name: 'ตะไคร้' }, { name: 'ใบมะกรูด' },
+  { name: 'ข่า' }, { name: 'รากผักชี' }, { name: 'พริกไทยดำ' },
+  { name: 'หอมแดง' }, { name: 'กะปิ' }, { name: 'ขมิ้น' }, { name: 'มะกรูด' },
+  { name: 'ใบโหระพา' }, { name: 'ใบแมงลัก' }, { name: 'เม็ดผักชี' }, { name: 'ยี่หร่า' }
 ]
 
-const veggieOptions = [
-  { name: 'ผักกาด' }, { name: 'แครอท' }, { name: 'บร็อคโคลี่' }, { name: 'เห็ด' },
-  { name: 'ฟักทอง' }, { name: 'บวบ' }, { name: 'ถั่วฝักยาว' }, { name: 'ผักบุ้ง' }
-]
-
-const cookingMethods = [
-  { name: 'ต้ม' }, { name: 'ทอด' }, { name: 'ปิ้ง' }, { name: 'นึ่ง' },
-  { name: 'ผัด' }, { name: 'อบ' }, { name: 'ย่าง' }, { name: 'ยำ' }
-]
-
-const spiceOptions = [
-  { name: 'พริก' }, { name: 'กระเทียม' }, { name: 'ขิง' }, { name: 'ตะไคร้' },
-  { name: 'ใบมะกรูด' }, { name: 'ข่า' }, { name: 'รากผักชี' }, { name: 'พริกไทยดำ' }
-]
+onMounted(async () => {
+  try {
+    const res = await fetch('http://localhost:3001/api/food-categories')
+    const data = await res.json()
+    apiFoodCategories.value = data.map(name => ({ name }))
+  } catch (err) {
+    console.error('❌ ไม่สามารถโหลดประเภทอาหารจาก API ได้:', err)
+  }
+})
 
 const handleSubmit = async () => {
   const auth = getAuth()
@@ -87,48 +92,40 @@ const handleSubmit = async () => {
     return
   }
 
+  const docSnap = await getDoc(doc(db, 'users', user.uid))
+  const liked = docSnap.exists() ? docSnap.data().liked_dishes || [] : []
+
+  const userInput = {
+    meats: selectedMeats.value.map(m => m.name),
+    veggies: selectedVeggies.value.map(v => v.name),
+    methods: selectedCookingMethods.value.map(c => c.name),
+    favorite: favoriteDish.value
+  }
+
+  const recommendedMenus = await recommendHybrid(userInput, liked)
+
   const userProfile = {
-    preferred_meats: selectedMeats.value.map(m => m.name),
-    preferred_veggies: selectedVeggies.value.map(v => v.name),
-    preferred_methods: selectedCookingMethods.value.map(c => c.name),
-    preferred_spices: selectedSpices.value.map(s => s.name),
+    preferred_meats: userInput.meats,
+    preferred_veggies: userInput.veggies,
+    preferred_methods: userInput.methods,
+    preferred_spices: selectedSpices.value.map(s => s.name), // ✅ รวมเครื่องเทศ + สมุนไพรไทย
+    preferred_categories: selectedCategories.value.map(c => c.name),
     liked_dishes: [favoriteDish.value],
     disliked_dishes: []
   }
-
-  const logs = await fetchLogs()
-  const transactions = transformToTransactions(logs)
-  const rules = await runApriori(transactions)
-  const aprioriSuggestions = suggestFromApriori(userProfile.liked_dishes, rules)
-
-  console.log('🔥 Apriori rules:', rules)
-  console.log('🔥 Apriori suggestions:', aprioriSuggestions)
-
-  const resultData = recommendMenus(userProfile, recipes, logs)
-
-  resultData.forEach(menu => {
-    if (aprioriSuggestions.includes(menu.name)) {
-      menu.score += 1.5
-    }
-  })
-
-  const sorted = resultData
-    .filter(m => m.score > 0)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 7)
 
   try {
     await addDoc(collection(db, 'recommend_logs'), {
       email: user.email,
       timestamp: serverTimestamp(),
       userProfile,
-      resultData: sorted
+      resultData: recommendedMenus
     })
 
     router.push({
       path: '/menu-result',
       query: {
-        result: JSON.stringify(sorted)
+        result: JSON.stringify(recommendedMenus)
       }
     })
   } catch (err) {
@@ -139,6 +136,7 @@ const handleSubmit = async () => {
 </script>
 
 <style scoped>
+/* เหมือนเดิม */
 .weekly-recommendation-container {
   width: 100%;
   max-width: 700px;
@@ -148,7 +146,6 @@ const handleSubmit = async () => {
   border-radius: 12px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
 }
-
 h1 {
   text-align: center;
   margin-bottom: 2rem;
@@ -156,18 +153,15 @@ h1 {
   font-size: 2rem;
   font-weight: 600;
 }
-
 .selection-box {
   margin-bottom: 2rem;
 }
-
 .selection-box label {
   display: block;
   font-weight: bold;
   color: #333;
   margin-bottom: 0.5rem;
 }
-
 .custom-select {
   width: 100%;
   background-color: #ffffff;
@@ -175,18 +169,15 @@ h1 {
   border-radius: 10px;
   padding: 0.75rem;
 }
-
 .input-box {
   margin-bottom: 2rem;
 }
-
 .input-box label {
   display: block;
   font-weight: bold;
   margin-bottom: 0.5rem;
   color: #333;
 }
-
 input {
   width: 100%;
   padding: 0.8rem;
@@ -194,7 +185,6 @@ input {
   border-radius: 10px;
   font-size: 1rem;
 }
-
 button {
   width: 100%;
   padding: 1rem;
@@ -207,7 +197,6 @@ button {
   cursor: pointer;
   transition: background-color 0.3s ease;
 }
-
 button:hover {
   background-color: #5548c8;
 }
