@@ -60,17 +60,13 @@ const favoriteDish = ref('')
 const apiFoodCategories = ref([])
 const router = useRouter()
 
-// ชุดข้อมูลภายใน
 const meatOptions = [ { name: 'ไก่' }, { name: 'หมู' }, { name: 'เนื้อ' }, { name: 'เป็ด' }, { name: 'กุ้ง' }, { name: 'ปลา' }, { name: 'หมึก' }, { name: 'ตับ' } ]
 const veggieOptions = [ { name: 'ผักกาด' }, { name: 'แครอท' }, { name: 'บร็อคโคลี่' }, { name: 'เห็ด' }, { name: 'ฟักทอง' }, { name: 'บวบ' }, { name: 'ถั่วฝักยาว' }, { name: 'ผักบุ้ง' } ]
 const cookingMethods = [ { name: 'ต้ม' }, { name: 'ทอด' }, { name: 'ปิ้ง' }, { name: 'นึ่ง' }, { name: 'ผัด' }, { name: 'อบ' }, { name: 'ย่าง' }, { name: 'ยำ' } ]
-
-// รวมเครื่องเทศเดิม + สมุนไพรไทย
 const combinedSpices = [
   { name: 'พริก' }, { name: 'กระเทียม' }, { name: 'ขิง' }, { name: 'ตะไคร้' }, { name: 'ใบมะกรูด' },
-  { name: 'ข่า' }, { name: 'รากผักชี' }, { name: 'พริกไทยดำ' },
-  { name: 'หอมแดง' }, { name: 'กะปิ' }, { name: 'ขมิ้น' }, { name: 'มะกรูด' },
-  { name: 'ใบโหระพา' }, { name: 'ใบแมงลัก' }, { name: 'เม็ดผักชี' }, { name: 'ยี่หร่า' }
+  { name: 'ข่า' }, { name: 'รากผักชี' }, { name: 'พริกไทยดำ' }, { name: 'หอมแดง' }, { name: 'กะปิ' },
+  { name: 'ขมิ้น' }, { name: 'มะกรูด' }, { name: 'ใบโหระพา' }, { name: 'ใบแมงลัก' }, { name: 'เม็ดผักชี' }, { name: 'ยี่หร่า' }
 ]
 
 onMounted(async () => {
@@ -86,7 +82,6 @@ onMounted(async () => {
 const handleSubmit = async () => {
   const auth = getAuth()
   const user = auth.currentUser
-
   if (!user) {
     alert('❌ กรุณา login ก่อนทำรายการ')
     return
@@ -102,13 +97,28 @@ const handleSubmit = async () => {
     favorite: favoriteDish.value
   }
 
-  const recommendedMenus = await recommendHybrid(userInput, liked)
+  const hybridResults = await recommendHybrid(userInput, liked)
+
+  let lstmResults = []
+  try {
+    const res = await fetch('http://localhost:5000/recommend-lstm', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ liked_dishes: liked })
+    })
+    const data = await res.json()
+    lstmResults = data.recommendations || []
+  } catch (err) {
+    console.error('❌ เรียก LSTM API ไม่สำเร็จ:', err)
+  }
+
+  const recommendedMenus = [...hybridResults, ...lstmResults]
 
   const userProfile = {
     preferred_meats: userInput.meats,
     preferred_veggies: userInput.veggies,
     preferred_methods: userInput.methods,
-    preferred_spices: selectedSpices.value.map(s => s.name), // ✅ รวมเครื่องเทศ + สมุนไพรไทย
+    preferred_spices: selectedSpices.value.map(s => s.name),
     preferred_categories: selectedCategories.value.map(c => c.name),
     liked_dishes: [favoriteDish.value],
     disliked_dishes: []
@@ -124,9 +134,7 @@ const handleSubmit = async () => {
 
     router.push({
       path: '/menu-result',
-      query: {
-        result: JSON.stringify(recommendedMenus)
-      }
+      query: { result: JSON.stringify(recommendedMenus) }
     })
   } catch (err) {
     console.error('❌ Firestore error:', err.code, err.message)
@@ -136,7 +144,6 @@ const handleSubmit = async () => {
 </script>
 
 <style scoped>
-/* เหมือนเดิม */
 .weekly-recommendation-container {
   width: 100%;
   max-width: 700px;
