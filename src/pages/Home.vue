@@ -64,9 +64,12 @@ export default {
         .map((i) => i.trim().toLowerCase())
         .filter((i) => i)
 
-      this.matchedRecipes = recipes.filter((r) =>
-        ingredients.every((inputIng) => r.ingredients.includes(inputIng))
-      )
+     this.matchedRecipes = recipes.filter((r) =>
+  ingredients.every((inputIng) =>
+    r.ingredients.some((realIng) => realIng.includes(inputIng))
+  )
+)
+
 
       this.hasSearched = true
     },

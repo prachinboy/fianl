@@ -26,8 +26,29 @@ const routes = [
   { path: '/settings', component: Settings },
   { path: '/search', component: SearchRecipe },
   { path: '/home', component: Home },
-  { path: '/history', component: () => import('../pages/RecommendationHistory.vue') }
-  
+  { path: '/history', component: () => import('../pages/RecommendationHistory.vue') },
+  {
+  path: '/admin',
+  name: 'AdminDashboard',
+  component: () => import('@/pages/admin/AdminDashboard.vue'),
+},
+{
+  path: '/admin/users',
+  name: 'AdminUsers',
+  component: () => import('@/pages/admin/AdminUsers.vue'),
+},
+{
+  path: '/admin/menus',
+  name: 'AdminMenus',
+  component: () => import('@/pages/admin/AdminMenus.vue')
+},
+{
+  path: '/admin/stats',
+  name: 'AdminStats',
+  component: () => import('@/pages/admin/AdminStats.vue')
+}
+
+
 ]
 
 const router = createRouter({
