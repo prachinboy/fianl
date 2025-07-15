@@ -1,11 +1,20 @@
 
-import { recommendV3 } from './recommendV3.js';
-import { fetchLogs, transformToTransactions, runApriori, suggestFromApriori } from './apriori.js';
-import recipes from '../data/recipes.json' assert { type: "json" };
+import { recommendV3 } from './recommendV3.node.js';
+import { fetchLogs, transformToTransactions, runApriori, suggestFromApriori } from './apriori.node.js';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import axios from 'axios';
 
+// ✅ Load recipes.json with fs (no import JSON directly)
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const recipes = JSON.parse(
+  fs.readFileSync(path.resolve(__dirname, '../data/recipes.json'), 'utf-8')
+);
+
 /**
- * Hybrid Recommendation (Frontend - Vite)
+ * Hybrid Recommendation (Node.js Test Version - Final)
  */
 export async function recommendHybrid(userInput, liked_dishes) {
   const safeInput = {

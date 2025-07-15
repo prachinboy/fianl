@@ -16,9 +16,9 @@
     </div>
 
     <div class="selection-box">
-      <label>เลือกประเภทการทำอาหาร</label>
-      <multiselect v-model="selectedCookingMethods" :options="cookingMethods" :multiple="true" label="name" track-by="name"
-        class="custom-select" :close-on-select="false" placeholder="เลือกประเภทการทำอาหาร" />
+      <label>เลือกประเภทเมนูอาหารที่ชอบ</label>
+      <multiselect v-model="selectedTypes" :options="typeOptions" :multiple="true" label="name" track-by="name"
+        class="custom-select" :close-on-select="false" placeholder="เลือกประเภทอาหาร" />
     </div>
 
     <div class="selection-box">
@@ -53,16 +53,22 @@ import { recommendHybrid } from '@/utils/recommendHybrid'
 
 const selectedMeats = ref([])
 const selectedVeggies = ref([])
-const selectedCookingMethods = ref([])
+const selectedTypes = ref([])
 const selectedSpices = ref([])
 const selectedCategories = ref([])
 const favoriteDish = ref('')
 const apiFoodCategories = ref([])
 const router = useRouter()
 
-const meatOptions = [ { name: 'ไก่' }, { name: 'หมู' }, { name: 'เนื้อ' }, { name: 'เป็ด' }, { name: 'กุ้ง' }, { name: 'ปลา' }, { name: 'หมึก' }, { name: 'ตับ' } ]
-const veggieOptions = [ { name: 'ผักกาด' }, { name: 'แครอท' }, { name: 'บร็อคโคลี่' }, { name: 'เห็ด' }, { name: 'ฟักทอง' }, { name: 'บวบ' }, { name: 'ถั่วฝักยาว' }, { name: 'ผักบุ้ง' } ]
-const cookingMethods = [ { name: 'ต้ม' }, { name: 'ทอด' }, { name: 'ปิ้ง' }, { name: 'นึ่ง' }, { name: 'ผัด' }, { name: 'อบ' }, { name: 'ย่าง' }, { name: 'ยำ' } ]
+const meatOptions = [
+  { name: 'ไก่' }, { name: 'หมู' }, { name: 'เนื้อ' }, { name: 'เป็ด' }, { name: 'กุ้ง' }, { name: 'ปลา' }, { name: 'หมึก' }, { name: 'ตับ' }
+]
+const veggieOptions = [
+  { name: 'ผักกาด' }, { name: 'แครอท' }, { name: 'บร็อคโคลี่' }, { name: 'เห็ด' }, { name: 'ฟักทอง' }, { name: 'บวบ' }, { name: 'ถั่วฝักยาว' }, { name: 'ผักบุ้ง' }
+]
+const typeOptions = [
+  { name: 'ต้ม' }, { name: 'ทอด' }, { name: 'ผัด' }, { name: 'แกง' }, { name: 'นึ่ง' }, { name: 'ยำ' }, { name: 'อบ' }, { name: 'ปิ้ง' },{ name: 'ย่าง' }
+]
 const combinedSpices = [
   { name: 'พริก' }, { name: 'กระเทียม' }, { name: 'ขิง' }, { name: 'ตะไคร้' }, { name: 'ใบมะกรูด' },
   { name: 'ข่า' }, { name: 'รากผักชี' }, { name: 'พริกไทยดำ' }, { name: 'หอมแดง' }, { name: 'กะปิ' },
@@ -93,31 +99,16 @@ const handleSubmit = async () => {
   const userInput = {
     meats: selectedMeats.value.map(m => m.name),
     veggies: selectedVeggies.value.map(v => v.name),
-    methods: selectedCookingMethods.value.map(c => c.name),
+    types: selectedTypes.value.map(t => t.name),
     favorite: favoriteDish.value
   }
 
   const hybridResults = await recommendHybrid(userInput, liked)
 
-  let lstmResults = []
-  try {
-    const res = await fetch('http://localhost:5000/recommend-lstm', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ liked_dishes: liked })
-    })
-    const data = await res.json()
-    lstmResults = data.recommendations || []
-  } catch (err) {
-    console.error('❌ เรียก LSTM API ไม่สำเร็จ:', err)
-  }
-
-  const recommendedMenus = [...hybridResults, ...lstmResults]
-
   const userProfile = {
     preferred_meats: userInput.meats,
     preferred_veggies: userInput.veggies,
-    preferred_methods: userInput.methods,
+    preferred_types: userInput.types,
     preferred_spices: selectedSpices.value.map(s => s.name),
     preferred_categories: selectedCategories.value.map(c => c.name),
     liked_dishes: [favoriteDish.value],
@@ -129,12 +120,12 @@ const handleSubmit = async () => {
       email: user.email,
       timestamp: serverTimestamp(),
       userProfile,
-      resultData: recommendedMenus
+      resultData: hybridResults
     })
 
     router.push({
       path: '/menu-result',
-      query: { result: JSON.stringify(recommendedMenus) }
+      query: { result: JSON.stringify(hybridResults) }
     })
   } catch (err) {
     console.error('❌ Firestore error:', err.code, err.message)
