@@ -1,47 +1,82 @@
-
 import { db } from '../firebase/firebaseConfig.js';
 import { collection, getDocs } from 'firebase/firestore';
 
 /**
- * Fetch recommend logs from Firestore
+ * Fetch logs from Firestore
  */
 export async function fetchLogs() {
   const logs = [];
-  const querySnapshot = await getDocs(collection(db, 'recommend_logs'));
-  querySnapshot.forEach(doc => {
-    logs.push(doc.data());
-  });
+  const snapshot = await getDocs(collection(db, 'recommend_logs'));
+  snapshot.forEach(doc => logs.push(doc.data()));
   return logs;
 }
 
 /**
- * Transform logs to transactions for Apriori
+ * Transform logs to transactions (Only keep logs with at least 2 dishes)
  */
 export function transformToTransactions(logs) {
-  return logs.map(log => log.liked_dishes || []);
+  return logs
+    .map(log => log.liked_dishes || [])
+    .filter(t => t.length >= 2); // ✅ ใช้เฉพาะ log ที่มีเมนู ≥ 2
 }
 
 /**
- * Run Apriori algorithm
+ * Simple Apriori Implementation (Browser Safe)
  */
-export function runApriori(transactions) {
-  const Apriori = require('node-apriori');
-  const apriori = new Apriori.Algorithm(0.3, 0.6, false);
-  const analysisResult = apriori.analyze(transactions);
-  return analysisResult.associationRules;
-}
+export function runApriori(transactions, minSupport = 0.3, minConfidence = 0.6) {
+  const itemCount = {};
+  const total = transactions.length;
+  const rules = [];
 
-/**
- * Suggest from Apriori results
- */
-export function suggestFromApriori(rules, liked_dishes) {
-  const suggestions = [];
-  rules.forEach(rule => {
-    const premise = rule.lhs[0];
-    const conclusion = rule.rhs[0];
-    if (liked_dishes.includes(premise) && !liked_dishes.includes(conclusion)) {
-      suggestions.push(conclusion);
+  // ✅ นับเมนูเดี่ยว
+  transactions.forEach(items => {
+    const uniqueItems = [...new Set(items)];
+    uniqueItems.forEach(item => {
+      itemCount[item] = (itemCount[item] || 0) + 1;
+    });
+  });
+
+  // ✅ คัดเมนูที่ผ่าน support
+  const frequentItems = Object.entries(itemCount)
+    .filter(([_, count]) => count / total >= minSupport)
+    .map(([item]) => item);
+
+  // ✅ สร้างกฎแบบง่าย
+  transactions.forEach(items => {
+    const filtered = items.filter(i => frequentItems.includes(i));
+    if (filtered.length < 2) return;
+
+    for (let i = 0; i < filtered.length; i++) {
+      for (let j = 0; j < filtered.length; j++) {
+        if (i !== j) {
+          const A = filtered[i];
+          const B = filtered[j];
+          const matchAB = transactions.filter(t => t.includes(A) && t.includes(B)).length;
+          const matchA = transactions.filter(t => t.includes(A)).length;
+          const confidence = matchAB / matchA;
+
+          if (confidence >= minConfidence) {
+            rules.push({ lhs: [A], rhs: [B], confidence });
+          }
+        }
+      }
     }
   });
-  return suggestions;
+
+  return rules;
+}
+
+/**
+ * Suggest from Apriori rules
+ */
+export function suggestFromApriori(rules, liked_dishes) {
+  const suggestions = new Set();
+  rules.forEach(rule => {
+    const left = rule.lhs;
+    const right = rule.rhs;
+    if (left.every(item => liked_dishes.includes(item))) {
+      right.forEach(item => suggestions.add(item));
+    }
+  });
+  return [...suggestions];
 }

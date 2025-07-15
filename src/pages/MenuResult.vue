@@ -1,9 +1,10 @@
+
 <script setup>
 import { ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { getAuth } from 'firebase/auth'
 import { db } from '@/firebase/firebaseConfig'
-import { doc, updateDoc, arrayUnion } from 'firebase/firestore'
+import { doc, setDoc, updateDoc, arrayUnion, collection, addDoc, serverTimestamp } from 'firebase/firestore'
 import ReviewBox from '@/components/ReviewBox.vue'
 
 const route = useRoute()
@@ -37,9 +38,22 @@ const likeMenu = async (menuName) => {
 
   try {
     const userRef = doc(db, 'users', user.uid)
+
+    // ✅ สร้าง document ถ้ายังไม่มี
+    await setDoc(userRef, { liked_dishes: [] }, { merge: true })
+
+    // ✅ เพิ่มเมนูที่ถูกใจใน users
     await updateDoc(userRef, {
       liked_dishes: arrayUnion(menuName)
     })
+
+    // ✅ บันทึก log ใหม่ลง recommend_logs
+    await addDoc(collection(db, 'recommend_logs'), {
+      userId: user.uid,
+      liked_dishes: [menuName],
+      timestamp: serverTimestamp()
+    })
+
     alert(`✅ คุณถูกใจเมนู: ${menuName}`)
   } catch (err) {
     console.error('❌ Error updating likes:', err.message)
