@@ -6,36 +6,49 @@
       <!-- ปุ่มสลับโหมด -->
       <div class="flex space-x-3 mb-6">
         <button @click="viewMode = 'daily'" :class="toggleBtnClass('daily')">📅 สถิติรายวัน</button>
-        <button @click="viewMode = 'weekly'" :class="toggleBtnClass('weekly')">📈 กราฟคำแนะนำรายสัปดาห์</button>
+        <button @click="viewMode = 'weekly'" :class="toggleBtnClass('weekly')">📆 รายสัปดาห์</button>
+        <button @click="viewMode = 'random'" :class="toggleBtnClass('random')">🎲 แบบสุ่ม</button>
       </div>
 
-      <!-- ตารางสถิติรายวัน -->
+      <!-- ✅ สถิติรายวัน -->
       <div v-if="viewMode === 'daily'" class="bg-white shadow-md rounded-xl p-4">
-        <table class="w-full text-sm">
-          <thead class="bg-orange-200 text-orange-800 font-semibold">
-            <tr>
-              <th class="p-2 text-left">วันที่</th>
-              <th class="p-2 text-left">ชื่อเมนู</th>
-              <th class="p-2 text-center">จำนวนที่แนะนำ</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="(item, index) in sortedDailyStats" :key="index" class="hover:bg-orange-50 border-b">
-              <td class="p-2">{{ item.date }}</td>
-              <td class="p-2">{{ item.name }}</td>
-              <td class="p-2 text-center font-bold">{{ item.count }}</td>
-            </tr>
-            <tr v-if="sortedDailyStats.length === 0">
-              <td colspan="3" class="text-center text-gray-500 p-4">ยังไม่มีข้อมูลคำแนะนำ</td>
-            </tr>
-          </tbody>
-        </table>
+        <h2 class="text-lg font-semibold text-orange-600 mb-4">📅 สถิติรายวัน</h2>
+        <ul class="text-sm space-y-2 text-gray-700">
+          <li v-for="(item, index) in groupedDailyStats" :key="index"
+              class="p-2 border rounded flex justify-between hover:bg-gray-50">
+            <span>📅 {{ item.date }}</span>
+            <span class="font-bold">{{ item.count }} ครั้ง</span>
+          </li>
+          <li v-if="groupedDailyStats.length === 0" class="text-gray-400">ยังไม่มีข้อมูลคำแนะนำ</li>
+        </ul>
       </div>
 
-      <!-- กราฟรายสัปดาห์ -->
+      <!-- ✅ รายสัปดาห์ -->
       <div v-if="viewMode === 'weekly'" class="bg-white shadow-md rounded-xl p-4">
-        <h2 class="text-lg font-semibold text-purple-600 mb-4">📉 กราฟคำแนะนำเมนูรายสัปดาห์</h2>
-        <LineChart :labels="weeklyLabels" :data="weeklyData" />
+        <h2 class="text-lg font-semibold text-purple-600 mb-4">📆 สถิติรายสัปดาห์ (แยกวัน)</h2>
+        <div v-for="(days, week) in weeklyGroupedDays" :key="week" class="mb-4">
+          <h3 class="font-bold text-indigo-600 mb-2">สัปดาห์ {{ week }}</h3>
+          <ul class="text-sm space-y-1 text-gray-700">
+            <li v-for="(day, index) in days" :key="index"
+                class="p-2 border rounded flex justify-between hover:bg-gray-50">
+              <span>📅 {{ day.date }}</span>
+              <span class="font-bold">{{ day.count }} ครั้ง</span>
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- ✅ แบบสุ่ม (เรียงวันที่จากใหม่ไปเก่า) -->
+      <div v-if="viewMode === 'random'" class="bg-white shadow-md rounded-xl p-4">
+        <h2 class="text-lg font-semibold text-pink-600 mb-4">🎲 แสดงสถิติสุ่มจากบางวัน</h2>
+        <ul class="text-sm space-y-2 text-gray-700">
+          <li v-for="(item, index) in randomStats" :key="index"
+              class="p-2 border rounded flex justify-between hover:bg-gray-50">
+            <span>📅 {{ item.date }}</span>
+            <span class="font-bold">{{ item.count }} ครั้ง</span>
+          </li>
+          <li v-if="randomStats.length === 0" class="text-gray-400">ไม่มีข้อมูลสำหรับแสดง</li>
+        </ul>
       </div>
     </div>
   </div>
@@ -43,47 +56,71 @@
 
 <script setup>
 import { ref, onMounted, computed } from 'vue'
-import { collection, getDocs } from 'firebase/firestore'
+import { collection, onSnapshot } from 'firebase/firestore'
 import { db } from '@/firebase/firebaseConfig'
 import dayjs from 'dayjs'
-import LineChart from '@/components/LineChart.vue'
 
 const dailyStats = ref([])
 const weeklyStats = ref([])
+const randomStats = ref([])
 const viewMode = ref('daily')
 
-onMounted(async () => {
-  const snapshot = await getDocs(collection(db, 'recommend_logs'))
+onMounted(() => {
   const dailyMap = new Map()
   const weeklyMap = new Map()
 
-  snapshot.forEach(doc => {
-    const { name, timestamp } = doc.data()
-    const date = dayjs(timestamp.toDate()).format('YYYY-MM-DD')
-    const week = dayjs(timestamp.toDate()).startOf('isoWeek').format('YYYY-[W]WW')
+  // ✅ Real-time
+  onSnapshot(collection(db, 'recommend_logs'), (snapshot) => {
+    dailyMap.clear()
+    weeklyMap.clear()
 
-    const dailyKey = `${date}-${name}`
-    const weeklyKey = week
+    snapshot.forEach(doc => {
+      const { timestamp } = doc.data()
+      if (!timestamp) return
 
-    // Daily
-    if (!dailyMap.has(dailyKey)) dailyMap.set(dailyKey, { date, name, count: 1 })
-    else dailyMap.get(dailyKey).count++
+      const date = dayjs(timestamp.toDate()).add(7, 'hour').format('YYYY-MM-DD')
+      const week = dayjs(timestamp.toDate()).add(7, 'hour').startOf('isoWeek').format('YYYY-[W]WW')
 
-    // Weekly
-    if (!weeklyMap.has(weeklyKey)) weeklyMap.set(weeklyKey, 1)
-    else weeklyMap.set(weeklyKey, weeklyMap.get(weeklyKey) + 1)
+      // รายวัน
+      if (!dailyMap.has(date)) dailyMap.set(date, 1)
+      else dailyMap.set(date, dailyMap.get(date) + 1)
+
+      // รายสัปดาห์
+      if (!weeklyMap.has(week)) weeklyMap.set(week, new Map())
+      const weekDays = weeklyMap.get(week)
+      weekDays.set(date, (weekDays.get(date) || 0) + 1)
+    })
+
+    dailyStats.value = Array.from(dailyMap.entries()).map(([date, count]) => ({ date, count }))
+    weeklyStats.value = Array.from(weeklyMap.entries()).map(([week, daysMap]) => ({
+      week,
+      days: Array.from(daysMap.entries()).map(([date, count]) => ({ date, count }))
+    }))
+
+    refreshRandom() // ✅ สุ่มใหม่อัตโนมัติ
   })
-
-  dailyStats.value = Array.from(dailyMap.values())
-  weeklyStats.value = Array.from(weeklyMap.entries()).map(([week, count]) => ({ week, count }))
 })
 
-const sortedDailyStats = computed(() =>
+const groupedDailyStats = computed(() =>
   dailyStats.value.slice().sort((a, b) => (a.date < b.date ? 1 : -1))
 )
 
-const weeklyLabels = computed(() => weeklyStats.value.map(i => i.week))
-const weeklyData = computed(() => weeklyStats.value.map(i => i.count))
+const weeklyGroupedDays = computed(() => {
+  const grouped = {}
+  weeklyStats.value.forEach((week) => {
+    grouped[week.week] = week.days.sort((a, b) => (a.date < b.date ? 1 : -1))
+  })
+  return grouped
+})
+
+// ✅ สุ่ม 7 วัน แต่เรียงตามวันที่ล่าสุด → ย้อนหลัง
+const refreshRandom = () => {
+  const shuffled = [...dailyStats.value]
+    .sort(() => Math.random() - 0.5)
+    .slice(0, 7)
+    .sort((a, b) => (a.date < b.date ? 1 : -1))
+  randomStats.value = shuffled
+}
 
 const toggleBtnClass = (mode) =>
   `px-4 py-2 rounded-xl font-semibold ${
@@ -94,5 +131,5 @@ const toggleBtnClass = (mode) =>
 </script>
 
 <style scoped>
-/* ใช้ Tailwind CSS ทั้งหมด */
+/* ใช้ Tailwind CSS */
 </style>

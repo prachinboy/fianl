@@ -25,9 +25,9 @@
           <tr v-for="menu in menus" :key="menu.id" class="border-t hover:bg-indigo-50">
             <td class="p-3">{{ menu.name }}</td>
             <td class="p-3">{{ menu.ingredients.join(', ') }}</td>
-            <td class="p-3">{{ menu.category }}</td>
+            <td class="p-3">{{ menu.type || menu.category }}</td>
             <td class="p-3 text-center space-x-2">
-              <button @click="editMenu(menu.id)" class="text-blue-600 hover:underline">แก้ไข</button>
+              <button @click="startEdit(menu)" class="text-blue-600 hover:underline">แก้ไข</button>
               <button @click="deleteMenu(menu.id)" class="text-red-600 hover:underline">ลบ</button>
             </td>
           </tr>
@@ -36,6 +36,34 @@
           </tr>
         </tbody>
       </table>
+
+      <!-- Modal แก้ไขเมนู -->
+      <div v-if="editingMenu"
+           class="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center">
+        <div class="bg-white p-6 rounded-lg shadow-lg w-96">
+          <h3 class="text-lg font-bold mb-4">✏️ แก้ไขเมนู</h3>
+
+          <label class="block mb-2">ชื่อเมนู</label>
+          <input v-model="editData.name" class="w-full border p-2 rounded mb-3" />
+
+          <label class="block mb-2">วัตถุดิบ (คั่นด้วย ,)</label>
+          <input v-model="editIngredients" class="w-full border p-2 rounded mb-3" />
+
+          <label class="block mb-2">ประเภท</label>
+          <input v-model="editData.type" class="w-full border p-2 rounded mb-3" />
+
+          <div class="flex justify-end gap-2">
+            <button class="bg-gray-400 text-white px-4 py-2 rounded hover:bg-gray-500"
+                    @click="cancelEdit">
+              ❌ ยกเลิก
+            </button>
+            <button class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
+                    @click="saveEdit">
+              ✅ บันทึก
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -44,30 +72,60 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { db } from '@/firebase/firebaseConfig'
-import { collection, getDocs, deleteDoc, doc } from 'firebase/firestore'
+import { collection, getDocs, deleteDoc, doc, updateDoc } from 'firebase/firestore'
 
 const menus = ref([])
 const router = useRouter()
 
+// สำหรับแก้ไข
+const editingMenu = ref(null)
+const editData = ref({ name: '', type: '' })
+const editIngredients = ref('')
+
+// ✅ โหลดเมนูจาก Firestore
 const fetchMenus = async () => {
   const snapshot = await getDocs(collection(db, 'recipes'))
-  menus.value = snapshot.docs.map(doc => ({
-    id: doc.id,
-    ...doc.data()
+  menus.value = snapshot.docs.map(docSnap => ({
+    id: docSnap.id,
+    ...docSnap.data()
   }))
 }
 
+// ✅ ลบเมนู
 const deleteMenu = async (id) => {
   if (confirm('คุณแน่ใจหรือไม่ว่าต้องการลบเมนูนี้?')) {
     await deleteDoc(doc(db, 'recipes', id))
+    alert('🗑️ ลบเมนูสำเร็จ')
     fetchMenus()
   }
 }
 
-const editMenu = (id) => {
-  router.push(`/edit-menu/${id}`) // ยังไม่ได้สร้างหน้านี้
+// ✅ เริ่มแก้ไข
+const startEdit = (menu) => {
+  editingMenu.value = menu
+  editData.value = { name: menu.name, type: menu.type || menu.category }
+  editIngredients.value = menu.ingredients.join(', ')
 }
 
+// ✅ ยกเลิกการแก้ไข
+const cancelEdit = () => {
+  editingMenu.value = null
+}
+
+// ✅ บันทึกการแก้ไข
+const saveEdit = async () => {
+  const menuRef = doc(db, 'recipes', editingMenu.value.id)
+  await updateDoc(menuRef, {
+    name: editData.value.name,
+    type: editData.value.type,
+    ingredients: editIngredients.value.split(',').map(i => i.trim())
+  })
+  alert('✅ แก้ไขเมนูสำเร็จ!')
+  editingMenu.value = null
+  await fetchMenus()
+}
+
+// ✅ ไปหน้าเพิ่มเมนูใหม่
 const goToAddMenu = () => {
   router.push('/admin/add-menu')
 }

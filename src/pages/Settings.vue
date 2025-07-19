@@ -27,23 +27,9 @@
       </div>
 
       <!-- บันทึก -->
-      <button @click="saveProfile" class="w-full py-2.5 bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 text-white font-medium rounded-xl shadow transition mb-8">
+      <button @click="saveProfile" class="w-full py-2.5 bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 text-white font-medium rounded-xl shadow transition">
         💾 บันทึกข้อมูลโปรไฟล์
       </button>
-
-      <div class="grid sm:grid-cols-2 gap-4">
-        <!-- ล้างหัวใจ -->
-        <div class="bg-red-50 border border-red-200 p-4 rounded-xl shadow">
-          <p class="text-red-600 font-semibold mb-2">🗑 ล้างเมนูที่คุณเคยกดหัวใจ</p>
-          <button @click="clearLikedMenus" class="w-full py-2 bg-red-500 text-white rounded-lg hover:bg-red-600">ล้าง ❤️ ทั้งหมด</button>
-        </div>
-
-        <!-- ธีม -->
-        <div class="bg-yellow-50 border border-yellow-200 p-4 rounded-xl shadow">
-          <p class="text-yellow-700 font-semibold mb-2">🎨 ธีมปัจจุบัน: <strong>{{ theme }}</strong></p>
-          <button @click="toggleTheme" class="w-full py-2 bg-yellow-400 text-white rounded-lg hover:bg-yellow-500">เปลี่ยนธีม</button>
-        </div>
-      </div>
     </div>
   </div>
 </template>
@@ -57,23 +43,15 @@ import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from 'fire
 
 const displayName = ref('')
 const bio = ref('')
-const theme = ref('light')
 const avatarUrl = ref('')
 const userEmail = ref('')
 
-const applyTheme = () => {
-  document.body.className = theme.value
-}
-
 onMounted(() => {
-  theme.value = localStorage.getItem('theme') || 'light'
-  applyTheme()
-
   const auth = getAuth()
   onAuthStateChanged(auth, async (user) => {
     if (user) {
       userEmail.value = user.email
-      const userDoc = await getDoc(doc(db, 'users', user.email))
+      const userDoc = await getDoc(doc(db, 'users', user.uid))
       if (userDoc.exists()) {
         const data = userDoc.data()
         displayName.value = data.displayName || ''
@@ -90,7 +68,7 @@ const saveProfile = async () => {
   if (!user) return alert('ยังไม่ได้ login')
 
   try {
-    await setDoc(doc(db, 'users', user.email), {
+    await setDoc(doc(db, 'users', user.uid), {
       displayName: displayName.value,
       bio: bio.value,
       avatarUrl: avatarUrl.value,
@@ -102,18 +80,6 @@ const saveProfile = async () => {
   } catch (err) {
     alert('❌ เกิดข้อผิดพลาดในการบันทึก')
   }
-}
-
-const clearLikedMenus = () => {
-  localStorage.removeItem('likedMenus')
-  alert('🗑 ลบเมนูที่กด ❤️ แล้ว')
-}
-
-const toggleTheme = () => {
-  theme.value = theme.value === 'light' ? 'dark' : 'light'
-  localStorage.setItem('theme', theme.value)
-  applyTheme()
-  alert(`🌈 เปลี่ยนธีมเป็น ${theme.value}`)
 }
 
 const handleFileUpload = async (event) => {

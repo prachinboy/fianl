@@ -5,32 +5,72 @@
     <!-- กลุ่มวัตถุดิบ -->
     <div class="selection-box">
       <label>เลือกเนื้อสัตว์ที่ชอบ</label>
-      <multiselect v-model="selectedMeats" :options="meatOptions" :multiple="true" label="name" track-by="name"
-        class="custom-select" :close-on-select="false" placeholder="เลือกเนื้อสัตว์" />
+      <multiselect
+        v-model="selectedMeats"
+        :options="meatOptions"
+        :multiple="true"
+        label="name"
+        track-by="name"
+        class="custom-select"
+        :close-on-select="false"
+        placeholder="เลือกเนื้อสัตว์"
+      />
     </div>
 
     <div class="selection-box">
       <label>เลือกผักที่ชอบ</label>
-      <multiselect v-model="selectedVeggies" :options="veggieOptions" :multiple="true" label="name" track-by="name"
-        class="custom-select" :close-on-select="false" placeholder="เลือกผัก" />
+      <multiselect
+        v-model="selectedVeggies"
+        :options="veggieOptions"
+        :multiple="true"
+        label="name"
+        track-by="name"
+        class="custom-select"
+        :close-on-select="false"
+        placeholder="เลือกผัก"
+      />
     </div>
 
     <div class="selection-box">
       <label>เลือกประเภทเมนูอาหารที่ชอบ</label>
-      <multiselect v-model="selectedTypes" :options="typeOptions" :multiple="true" label="name" track-by="name"
-        class="custom-select" :close-on-select="false" placeholder="เลือกประเภทอาหาร" />
+      <multiselect
+        v-model="selectedTypes"
+        :options="typeOptions"
+        :multiple="true"
+        label="name"
+        track-by="name"
+        class="custom-select"
+        :close-on-select="false"
+        placeholder="เลือกประเภทอาหาร"
+      />
     </div>
 
     <div class="selection-box">
       <label>เลือกเครื่องเทศ/สมุนไพรไทยที่ชอบ</label>
-      <multiselect v-model="selectedSpices" :options="combinedSpices" :multiple="true" label="name" track-by="name"
-        class="custom-select" :close-on-select="false" placeholder="เลือกเครื่องเทศ" />
+      <multiselect
+        v-model="selectedSpices"
+        :options="combinedSpices"
+        :multiple="true"
+        label="name"
+        track-by="name"
+        class="custom-select"
+        :close-on-select="false"
+        placeholder="เครื่องปรุง"
+      />
     </div>
 
     <div class="selection-box">
       <label>เลือกประเภทอาหารจาก API (Spoonacular)</label>
-      <multiselect v-model="selectedCategories" :options="apiFoodCategories" :multiple="true" label="name" track-by="name"
-        class="custom-select" :close-on-select="false" placeholder="เลือกประเภทอาหาร" />
+      <multiselect
+        v-model="selectedCategories"
+        :options="apiFoodCategories"
+        :multiple="true"
+        label="name"
+        track-by="name"
+        class="custom-select"
+        :close-on-select="false"
+        placeholder="เลือกประเภทอาหาร"
+      />
     </div>
 
     <div class="input-box">
@@ -61,18 +101,36 @@ const apiFoodCategories = ref([])
 const router = useRouter()
 
 const meatOptions = [
-  { name: 'ไก่' }, { name: 'หมู' }, { name: 'เนื้อ' }, { name: 'เป็ด' }, { name: 'กุ้ง' }, { name: 'ปลา' }, { name: 'หมึก' }, { name: 'ตับ' }
+  { name: 'ไก่' }, { name: 'หมู' }, { name: 'เนื้อ' }, { name: 'เป็ด' }, { name: 'กุ้ง' }, { name: 'ปลา' },
+  { name: 'หมึก' }, { name: 'หมูยอ' }, { name: 'บะหมี่' }, { name: 'หมูแดง' }, { name: 'หมี่' },
+  { name: 'เต้าหู้ไข่' }, { name: 'ขนมจีน' }, { name: 'เส้นเล็ก' }, { name: 'ตับ' },
+  { name: 'เม็ดมะม่วงหิมมะพานต์' }, { name: 'หมูกรอบ' }, { name: 'เต้าหู้' }, { name: 'ลูกชิ้นปลา' },
+  { name: 'กระดูกหมู' }, { name: 'หมูสามชั้น' }, { name: 'ซี่โครงหมู' }, { name: 'ไส้หมู' },
+  { name: 'หมูป่า' }, { name: 'หมูสับ' }, { name: 'เนื้อสับ' }, { name: 'กุ้งแห้ง' }
 ]
+
 const veggieOptions = [
-  { name: 'ผักกาด' }, { name: 'แครอท' }, { name: 'บร็อคโคลี่' }, { name: 'เห็ด' }, { name: 'ฟักทอง' }, { name: 'บวบ' }, { name: 'ถั่วฝักยาว' }, { name: 'ผักบุ้ง' }
+  { name: 'ผักกาด' }, { name: 'แครอท' }, { name: 'บร็อคโคลี่' }, { name: 'เห็ด' }, { name: 'ฟักทอง' },
+  { name: 'บวบ' }, { name: 'ถั่วฝักยาว' }, { name: 'ผักบุ้ง' }, { name: 'มะขือ' }, { name: 'หน่อไม้' },
+  { name: 'ยอดชะอม' }, { name: 'กวางตุ้ง' }, { name: 'มะละกอ' }, { name: 'มะเขือเทศ' }, { name: 'แตงกวา' },
+  { name: 'ผักหวาน' }, { name: 'มะระ' }, { name: 'ถั่วงอก' }, { name: 'ผักกาดดอง' }, { name: 'ตำลึง' },
+  { name: 'ฟัก' }, { name: 'มันฝรั่ง' }, { name: 'กระหล่ำปี' }, { name: 'ใบชะพลู' }, { name: 'พริก' },
+  { name: 'กระเทียม' }, { name: 'ขิง' }, { name: 'ตะไคร้' }, { name: 'ใบมะกรูด' }, { name: 'ข่า' },
+  { name: 'รากผักชี' }, { name: 'พริกไทยดำ' }, { name: 'หอมแดง' }, { name: 'กะทิ' }, { name: 'ขมิ้น' },
+  { name: 'มะกรูด' }, { name: 'ใบโหระพา' }, { name: 'ใบแมงลัก' }, { name: 'เม็ดผักชี' }, { name: 'ผักชีฝรั่ง' },
+  { name: 'มะนาว' }, { name: 'ต้นหอม' }, { name: 'ใบกะเพรา' }, { name: 'พริกไทย' }, { name: 'กระเททียมเจียว' },
+  { name: 'หอมใหญ่' }, { name: 'ขมิ้น' }, { name: 'พริกหยวก' }
 ]
+
 const typeOptions = [
-  { name: 'ต้ม' }, { name: 'ทอด' }, { name: 'ผัด' }, { name: 'แกง' }, { name: 'นึ่ง' }, { name: 'ยำ' }, { name: 'อบ' }, { name: 'ปิ้ง' },{ name: 'ย่าง' }
+  { name: 'ต้ม' }, { name: 'ทอด' }, { name: 'ผัด' }, { name: 'แกง' }, { name: 'นึ่ง' },
+  { name: 'ยำ' }, { name: 'อบ' }, { name: 'ปิ้ง' }, { name: 'ย่าง' }
 ]
+
 const combinedSpices = [
-  { name: 'พริก' }, { name: 'กระเทียม' }, { name: 'ขิง' }, { name: 'ตะไคร้' }, { name: 'ใบมะกรูด' },
-  { name: 'ข่า' }, { name: 'รากผักชี' }, { name: 'พริกไทยดำ' }, { name: 'หอมแดง' }, { name: 'กะปิ' },
-  { name: 'ขมิ้น' }, { name: 'มะกรูด' }, { name: 'ใบโหระพา' }, { name: 'ใบแมงลัก' }, { name: 'เม็ดผักชี' }, { name: 'ยี่หร่า' }
+  { name: 'น้ำปลา' }, { name: 'น้ำมันหอย' }, { name: 'พริกแกง' }, { name: 'พริกเผา' }, { name: 'นมข้นจืด' },
+  { name: 'กะทิ' }, { name: 'เกลือ' }, { name: 'น้ำปลาร้า' }, { name: 'ผงกระหรี่' }, { name: 'ไตปลา' },
+  { name: 'ซีอิ๊ว' }, { name: 'น้ำผึ้ง' }, { name: 'ข้าวคั่ว' }, { name: 'น้ำมะขามเปียก' }
 ]
 
 onMounted(async () => {
@@ -166,6 +224,37 @@ h1 {
   border: 2px solid #ddd;
   border-radius: 10px;
   padding: 0.75rem;
+  min-height: 50px;
+}
+/* ✅ Tag ที่เลือกแล้ว */
+.custom-select .multiselect__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  max-height: 100px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 4px;
+  box-sizing: border-box;
+}
+/* ✅ Dropdown เรียงซ้าย→ขวาและ wrap */
+.custom-select .multiselect__content-wrapper {
+  max-height: 200px;
+  overflow-y: auto;
+}
+.custom-select .multiselect__content {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 6px !important;
+  padding: 6px;
+}
+.custom-select .multiselect__element {
+  flex: 0 1 auto !important;
+  min-width: 80px;
+}
+.custom-select .multiselect__option {
+  white-space: normal !important;
+  line-height: 1.4;
 }
 .input-box {
   margin-bottom: 2rem;

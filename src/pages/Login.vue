@@ -42,7 +42,7 @@
 <script setup>
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth'
+import { getAuth, signInWithEmailAndPassword } from 'firebase/auth'
 
 const email = ref('')
 const password = ref('')
@@ -51,39 +51,20 @@ const router = useRouter()
 const loginUser = async () => {
   try {
     const auth = getAuth()
-    await signInWithEmailAndPassword(auth, email.value, password.value)
+    const userCredential = await signInWithEmailAndPassword(auth, email.value, password.value)
+    const user = userCredential.user
 
-    const existing = JSON.parse(localStorage.getItem('user') || '{}')
-    const newCount = (existing.workouts || 0) + 1
-
+    // ✅ เก็บข้อมูล user ลง localStorage
     localStorage.setItem('user', JSON.stringify({
-      username: email.value.split('@')[0],
-      email: email.value,
-      workouts: newCount
+      uid: user.uid,
+      email: user.email,
+      displayName: user.displayName || user.email.split('@')[0]
     }))
 
     alert('✅ เข้าสู่ระบบสำเร็จ')
     router.push('/dashboard')
   } catch (error) {
     alert('❌ เข้าสู่ระบบไม่สำเร็จ: ' + error.message)
-  }
-}
-
-const registerUser = async () => {
-  try {
-    const auth = getAuth()
-    await createUserWithEmailAndPassword(auth, email.value, password.value)
-
-    localStorage.setItem('user', JSON.stringify({
-      username: email.value.split('@')[0],
-      email: email.value,
-      workouts: 0
-    }))
-
-    alert('✅ สมัครสมาชิกสำเร็จ และเข้าสู่ระบบแล้ว')
-    router.push('/dashboard')
-  } catch (error) {
-    alert('❌ สมัครไม่สำเร็จ: ' + error.message)
   }
 }
 

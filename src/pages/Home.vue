@@ -30,9 +30,7 @@
       <div
         v-for="(recipe, index) in matchedRecipes"
         :key="recipe.id"
-        :class="[
-          'bg-orange-50 rounded-2xl p-6 shadow-md hover:shadow-lg transition border-2 border-orange-300'
-        ]"
+        class="bg-orange-50 rounded-2xl p-6 shadow-md hover:shadow-lg transition border-2 border-orange-300"
       >
         <h2 class="text-xl font-bold text-orange-600 mb-2">🍽️ {{ recipe.name }}</h2>
         <p class="text-gray-600 text-sm">วัตถุดิบ: {{ recipe.ingredients.join(', ') }}</p>
@@ -45,36 +43,48 @@
   </div>
 </template>
 
-<script>
-import recipes from '@/data/recipes.json'
+<script setup>
+import { ref, onMounted } from "vue";
+import { collection, onSnapshot } from "firebase/firestore";
+import { db } from "@/firebase/firebaseConfig";
 
-export default {
-  name: 'HomePage',
-  data() {
-    return {
-      ingredientInput: '',
-      matchedRecipes: [],
-      hasSearched: false,
-    }
-  },
-  methods: {
-    recommendMenu() {
-      const ingredients = this.ingredientInput
-        .split(',')
-        .map((i) => i.trim().toLowerCase())
-        .filter((i) => i)
+const ingredientInput = ref("");
+const allRecipes = ref([]);
+const matchedRecipes = ref([]);
+const hasSearched = ref(false);
 
-     this.matchedRecipes = recipes.filter((r) =>
-  ingredients.every((inputIng) =>
-    r.ingredients.some((realIng) => realIng.includes(inputIng))
-  )
-)
+// ✅ ดึงข้อมูลแบบ Real-time จาก Firestore
+onMounted(() => {
+  onSnapshot(collection(db, "recipes"), (snapshot) => {
+    allRecipes.value = snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+    console.log("✅ อัปเดตเมนูแบบ Real-time:", allRecipes.value);
+  });
+});
 
+// ✅ ฟังก์ชันค้นหาเมนู
+const recommendMenu = () => {
+  const ingredients = ingredientInput.value
+    .split(",")
+    .map((i) => i.trim().toLowerCase())
+    .filter((i) => i);
 
-      this.hasSearched = true
-    },
-  },
-}
+  if (ingredients.length === 0) {
+    matchedRecipes.value = [];
+    hasSearched.value = true;
+    return;
+  }
+
+  matchedRecipes.value = allRecipes.value.filter((r) =>
+    ingredients.every((inputIng) =>
+      r.ingredients.some((realIng) => realIng.includes(inputIng))
+    )
+  );
+
+  hasSearched.value = true;
+};
 </script>
 
 <style scoped>

@@ -6,7 +6,7 @@
         <div class="flex flex-col items-center gap-3">
           <img :src="avatarUrl" class="w-20 h-20 rounded-full border-4 border-white shadow-md object-cover" alt="Avatar" />
           <div class="text-center">
-            <h2 class="text-lg font-semibold">{{ displayName || user.username }}</h2>
+            <h2 class="text-lg font-semibold">{{ displayName || user.displayName }}</h2>
             <p class="text-xs opacity-80">👤 ผู้ใช้งานระบบ</p>
           </div>
         </div>
@@ -16,7 +16,6 @@
           <button @click="goToMenu" class="w-full text-left px-3 py-2 bg-pink-600 hover:bg-pink-700 rounded">📅 เลือกการแนะนำ</button>
           <button @click="goToHistory" class="w-full text-left px-3 py-2 bg-yellow-500 hover:bg-yellow-600 rounded">🕓 ประวัติการแนะนำ</button>
 
-          <!-- ปุ่มจัดการระบบ เฉพาะแอดมิน -->
           <button
             v-if="isAdmin"
             @click="goToAdmin"
@@ -37,45 +36,40 @@
       </div>
 
       <div class="bg-white rounded-3xl shadow-xl p-8">
-        <!-- Welcome Section -->
         <div class="mb-6">
-          <h1 class="text-2xl font-bold text-gray-800">ยินดีต้อนรับ {{ displayName || user.username }}</h1>
+          <h1 class="text-2xl font-bold text-gray-800">ยินดีต้อนรับ {{ displayName || user.displayName }}</h1>
           <p class="text-sm text-gray-500">📧 {{ user.email }}</p>
         </div>
 
-        <!-- Chart + Reviews -->
         <div class="grid sm:grid-cols-2 gap-6">
-          <div class="bg-gradient-to-br from-pink-100 to-indigo-100 p-6 rounded-xl shadow text-center">
-            <h2 class="font-semibold text-gray-800 mb-4">📊 หมวดหมู่เมนูที่คุณชอบ</h2>
-            <div class="w-full h-40 bg-white rounded-full shadow-inner flex items-center justify-center text-gray-400">
-              (แผนภูมิวง Placeholder)
+          <!-- ❤️ เมนูที่คุณเคยกดถูกใจ -->
+          <div class="bg-gradient-to-br from-pink-100 to-indigo-100 p-6 rounded-xl shadow">
+            <h2 class="font-semibold text-gray-800 mb-4">❤️ เมนูที่คุณเคยกดถูกใจ</h2>
+            <div class="h-48 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-rounded scrollbar-thumb-gray-400">
+              <ul v-if="likedDishes.length > 0" class="space-y-2 text-sm text-gray-700">
+                <li
+                  v-for="(dish, index) in likedDishes.slice().reverse()"
+                  :key="index"
+                  class="p-3 border rounded-md bg-pink-50 hover:bg-pink-100"
+                >
+                  ✅ {{ dish }}
+                </li>
+              </ul>
+              <p v-else class="text-gray-400 text-sm">ยังไม่มีเมนูที่กดถูกใจ</p>
             </div>
           </div>
 
+          <!-- 📝 รีวิวล่าสุด -->
           <div class="bg-gradient-to-br from-yellow-50 to-white p-6 rounded-xl shadow">
             <h2 class="font-semibold text-gray-800 mb-4">📝 รีวิวล่าสุดของคุณ</h2>
-            <ul class="text-sm space-y-2 text-gray-700">
-              <li v-for="(review, index) in reviews.slice(-3).reverse()" :key="index">
-                💬 {{ review }}
-              </li>
-              <li v-if="reviews.length === 0" class="text-gray-400">คุณยังไม่ได้รีวิวเมนูใดเลย</li>
-            </ul>
-          </div>
-        </div>
-
-        <!-- Favorite Dishes -->
-        <div class="mt-10">
-          <h2 class="text-lg font-semibold text-gray-800 mb-4">❤️ เมนูที่คุณเคยกดถูกใจ</h2>
-          <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            <div
-              v-for="(dish, index) in likedDishes.slice(-3).reverse()"
-              :key="index"
-              class="bg-white border border-gray-200 p-4 rounded-xl shadow hover:shadow-md"
-            >
-              <div class="text-sm text-gray-500 mb-1">🍽️ เมนูล่าสุดที่คุณกดถูกใจ</div>
-              <div class="font-medium text-gray-800 truncate">{{ dish }}</div>
+            <div class="h-48 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-rounded scrollbar-thumb-gray-400">
+              <ul class="text-sm space-y-2 text-gray-700">
+                <li v-for="(review, index) in reviews.slice().reverse()" :key="index">
+                  💬 {{ review }}
+                </li>
+                <li v-if="reviews.length === 0" class="text-gray-400">คุณยังไม่ได้รีวิวเมนูใดเลย</li>
+              </ul>
             </div>
-            <div v-if="likedDishes.length === 0" class="text-gray-500 text-sm col-span-full">ยังไม่มีเมนูที่ถูกใจ</div>
           </div>
         </div>
       </div>
@@ -96,20 +90,26 @@ const avatarUrl = ref('')
 const likedDishes = ref([])
 const reviews = ref([])
 
-// ตรวจว่าเป็นแอดมิน (เช็คจากอีเมล)
 const isAdmin = user?.email === 'athipkusri@gmail.com'
 
 if (!user) {
   router.push('/login')
 } else {
   const fetchUserProfile = async () => {
-    const userDoc = await getDoc(doc(db, 'users', user.email))
-    if (userDoc.exists()) {
-      const data = userDoc.data()
-      displayName.value = data.displayName || ''
-      avatarUrl.value = data.avatarUrl || ''
-      likedDishes.value = data.liked_dishes || []
-      reviews.value = data.reviews || []
+    try {
+      const userDocId = user.uid || user.email
+      const userRef = doc(db, 'users', userDocId)
+      const userDoc = await getDoc(userRef)
+
+      if (userDoc.exists()) {
+        const data = userDoc.data()
+        displayName.value = data.displayName || ''
+        avatarUrl.value = data.avatarUrl || ''
+        likedDishes.value = data.liked_dishes || []
+        reviews.value = data.reviews || []
+      }
+    } catch (err) {
+      console.error("❌ Error fetching user profile:", err.message)
     }
   }
   fetchUserProfile()
@@ -126,5 +126,14 @@ const logout = () => {
 </script>
 
 <style scoped>
-/* ใช้ Tailwind CSS ทั้งหมด */
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background-color: rgba(100, 100, 100, 0.5);
+  border-radius: 10px;
+}
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
 </style>

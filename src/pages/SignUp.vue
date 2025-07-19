@@ -62,15 +62,24 @@ const handleSubmit = async () => {
     const userCredential = await createUserWithEmailAndPassword(auth, email.value, password.value)
     const user = userCredential.user
 
+    // ✅ บันทึกข้อมูลผู้ใช้ลง Firestore
     await setDoc(doc(db, 'users', user.uid), {
       uid: user.uid,
       email: user.email,
       username: username.value,
-      liked_dishes: []
+      liked_dishes: [],
+      reviews: []
     })
 
+    // ✅ บันทึกข้อมูลลง localStorage เพื่อให้ Dashboard ใช้งานได้ทันที
+    localStorage.setItem('user', JSON.stringify({
+      uid: user.uid,
+      email: user.email,
+      displayName: username.value
+    }))
+
     alert('✅ สมัครสมาชิกสำเร็จ และข้อมูลถูกบันทึกแล้ว')
-    router.push('/menu-selection')
+    router.push('/dashboard') // ไป Dashboard ทันที
   } catch (error) {
     if (error.code === 'auth/email-already-in-use') {
       alert('❌ อีเมลนี้ถูกใช้แล้ว โปรดเข้าสู่ระบบหรือใช้อีเมลอื่น')
