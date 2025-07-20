@@ -2,7 +2,6 @@
   <div class="weekly-recommendation-container">
     <h1>แนะนำเมนูอาหารรายสัปดาห์</h1>
 
-    <!-- กลุ่มวัตถุดิบ -->
     <div class="selection-box">
       <label>เลือกเนื้อสัตว์ที่ชอบ</label>
       <multiselect
@@ -226,7 +225,6 @@ h1 {
   padding: 0.75rem;
   min-height: 50px;
 }
-/* ✅ Tag ที่เลือกแล้ว */
 .custom-select .multiselect__tags {
   display: flex;
   flex-wrap: wrap;
@@ -234,27 +232,14 @@ h1 {
   max-height: 100px;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 4px;
-  box-sizing: border-box;
 }
-/* ✅ Dropdown เรียงซ้าย→ขวาและ wrap */
-.custom-select .multiselect__content-wrapper {
-  max-height: 200px;
-  overflow-y: auto;
+.custom-select .multiselect__tag {
+  margin: 0;
 }
-.custom-select .multiselect__content {
-  display: flex !important;
-  flex-wrap: wrap !important;
-  gap: 6px !important;
-  padding: 6px;
-}
-.custom-select .multiselect__element {
-  flex: 0 1 auto !important;
-  min-width: 80px;
-}
-.custom-select .multiselect__option {
-  white-space: normal !important;
-  line-height: 1.4;
+/* ✅ บังคับให้ dropdown ขยายเต็มที่ */
+::v-deep(.multiselect__content-wrapper) {
+  max-height: none !important;
+  overflow-y: visible !important;
 }
 .input-box {
   margin-bottom: 2rem;
