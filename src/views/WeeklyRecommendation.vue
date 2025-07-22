@@ -173,12 +173,23 @@ const handleSubmit = async () => {
   }
 
   try {
+    // ✅ Log เดิม
     await addDoc(collection(db, 'recommend_logs'), {
       email: user.email,
       timestamp: serverTimestamp(),
       userProfile,
       resultData: hybridResults
     })
+
+    // ✅ เพิ่ม Log Weekly แยกเมนู เพื่อ AdminStats
+    for (const menu of hybridResults) {
+      await addDoc(collection(db, 'recommend_logs'), {
+        email: user.email,
+        timestamp: serverTimestamp(),
+        type: "weekly",
+        menu: menu.name || menu
+      })
+    }
 
     router.push({
       path: '/menu-result',
@@ -236,7 +247,6 @@ h1 {
 .custom-select .multiselect__tag {
   margin: 0;
 }
-/* ✅ บังคับให้ dropdown ขยายเต็มที่ */
 ::v-deep(.multiselect__content-wrapper) {
   max-height: none !important;
   overflow-y: visible !important;
