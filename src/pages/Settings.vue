@@ -26,6 +26,26 @@
         <textarea v-model="bio" placeholder="เช่น: ชอบทำอาหารคลีน..." class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300"></textarea>
       </div>
 
+      <!-- ✅ เปลี่ยนรหัสผ่าน -->
+      <div class="mb-6">
+        <label class="block text-gray-700 font-semibold mb-1">🔒 เปลี่ยนรหัสผ่าน:</label>
+        <input
+          v-model="newPassword"
+          type="password"
+          placeholder="กรอกรหัสผ่านใหม่ (อย่างน้อย 6 ตัวอักษร)"
+          class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300"
+        />
+        <button
+          @click="updatePasswordHandler"
+          class="w-full mt-2 py-2.5 bg-indigo-500 hover:bg-indigo-600 text-white font-medium rounded-xl shadow transition"
+        >
+          🔑 เปลี่ยนรหัสผ่าน
+        </button>
+        <p v-if="passwordMessage" :class="isPasswordSuccess ? 'text-green-600' : 'text-red-600'" class="mt-1">
+          {{ passwordMessage }}
+        </p>
+      </div>
+
       <!-- บันทึก -->
       <button @click="saveProfile" class="w-full py-2.5 bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 text-white font-medium rounded-xl shadow transition">
         💾 บันทึกข้อมูลโปรไฟล์
@@ -36,7 +56,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { getAuth, onAuthStateChanged } from 'firebase/auth'
+import { getAuth, onAuthStateChanged, updatePassword } from 'firebase/auth'
 import { db } from '@/firebase/firebaseConfig'
 import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore'
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage'
@@ -45,6 +65,11 @@ const displayName = ref('')
 const bio = ref('')
 const avatarUrl = ref('')
 const userEmail = ref('')
+
+// ✅ เปลี่ยนรหัสผ่าน
+const newPassword = ref('')
+const passwordMessage = ref('')
+const isPasswordSuccess = ref(false)
 
 onMounted(() => {
   const auth = getAuth()
@@ -93,6 +118,34 @@ const handleFileUpload = async (event) => {
   await uploadBytes(fileRef, file)
   avatarUrl.value = await getDownloadURL(fileRef)
   alert('📸 รูปถูกอัปโหลดเรียบร้อย')
+}
+
+// ✅ ฟังก์ชันเปลี่ยนรหัสผ่าน
+const updatePasswordHandler = async () => {
+  if (!newPassword.value || newPassword.value.length < 6) {
+    passwordMessage.value = "❌ กรุณากรอกรหัสผ่านอย่างน้อย 6 ตัวอักษร"
+    isPasswordSuccess.value = false
+    return
+  }
+
+  const auth = getAuth()
+  const user = auth.currentUser
+  if (!user) {
+    passwordMessage.value = "❌ กรุณาเข้าสู่ระบบก่อน"
+    isPasswordSuccess.value = false
+    return
+  }
+
+  try {
+    await updatePassword(user, newPassword.value)
+    passwordMessage.value = "✅ เปลี่ยนรหัสผ่านสำเร็จ!"
+    isPasswordSuccess.value = true
+    newPassword.value = ''
+  } catch (err) {
+    console.error("❌ Error updating password:", err)
+    passwordMessage.value = "❌ เกิดข้อผิดพลาด: " + err.message
+    isPasswordSuccess.value = false
+  }
 }
 </script>
 

@@ -1,6 +1,5 @@
 import { recommendV3 } from './recommendV3.js';
 import { fetchLogs, transformToTransactions, runApriori, suggestFromApriori } from './apriori.js';
-import axios from 'axios';
 import { db } from '@/firebase/firebaseConfig';
 import { doc, getDoc, collection, getDocs } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
@@ -14,59 +13,79 @@ const synonyms = {
   "เป็ด": ["เป็ด", "duck"]
 };
 
-// ✅ ดึง recipes จาก Firestore
+// ✅ ดึง recipes จาก Firestore + กัน null ทุก field
 async function fetchRecipesFromFirestore() {
   const snapshot = await getDocs(collection(db, "recipes"));
-  return snapshot.docs.map(doc => ({
-    id: doc.id,
-    ...doc.data()
-  }));
+  return snapshot.docs
+    .map(doc => {
+      const data = doc.data() || {};
+      return {
+        id: doc.id,
+        name: data.name || "", // ป้องกันไม่มีชื่อ
+        ingredients: Array.isArray(data.ingredients) ? data.ingredients : [],
+        method: data.method || "",
+        type: data.type || ""
+      };
+    })
+    .filter(r => r.name); // ต้องมีชื่อเท่านั้น
 }
 
-// ✅ ฟังก์ชันกรองแบบ AND Logic
+// ✅ ฟังก์ชันกรองแบบ AND Logic (กัน undefined ทุกกรณี)
 function filterRecipesByInput(userInput, recipes) {
-  return recipes.filter(recipe => {
-    const ing = (recipe.ingredients || []).map(i => i.toLowerCase());
-    const methodText = (recipe.method || "").toLowerCase();
-    const nameLower = recipe.name.toLowerCase();
+  const safeInput = {
+    meats: Array.isArray(userInput.meats) ? userInput.meats : [],
+    veggies: Array.isArray(userInput.veggies) ? userInput.veggies : [],
+    types: Array.isArray(userInput.types) ? userInput.types : [],
+    favorite: userInput.favorite || ""
+  };
 
-    const meatOk =
-      !userInput.meats?.length ||
-      userInput.meats.every(m => {
-        const group = synonyms[m] || [m];
-        return group.some(syn =>
-          ing.some(i => i.includes(syn.toLowerCase())) ||
-          nameLower.includes(syn.toLowerCase())
+  return recipes
+    .filter(recipe => recipe && recipe.name)
+    .filter(recipe => {
+      const ing = Array.isArray(recipe.ingredients)
+        ? recipe.ingredients.map(i => (i || "").toLowerCase())
+        : [];
+      const methodText = (recipe.method || "").toLowerCase();
+      const nameLower = (recipe.name || "").toLowerCase();
+
+      const meatOk =
+        !safeInput.meats.length ||
+        safeInput.meats.every(m => {
+          const group = synonyms[m] || [m];
+          return group.some(syn =>
+            ing.some(i => i.includes(syn.toLowerCase())) ||
+            nameLower.includes(syn.toLowerCase())
+          );
+        });
+
+      const vegOk =
+        !safeInput.veggies.length ||
+        safeInput.veggies.every(v =>
+          ing.some(i => i.includes(v.toLowerCase())) ||
+          nameLower.includes(v.toLowerCase())
         );
-      });
 
-    const vegOk =
-      !userInput.veggies?.length ||
-      userInput.veggies.every(v =>
-        ing.some(i => i.includes(v.toLowerCase())) ||
-        nameLower.includes(v.toLowerCase())
-      );
+      const methodOk =
+        !safeInput.types.length ||
+        safeInput.types.every(t =>
+          methodText.includes(t.toLowerCase()) ||
+          (recipe.type || "").toLowerCase().includes(t.toLowerCase())
+        );
 
-    const methodOk =
-      !userInput.types?.length ||
-      userInput.types.every(t =>
-        methodText.includes(t.toLowerCase()) ||
-        recipe.type?.toLowerCase().includes(t.toLowerCase())
-      );
+      const favOk =
+        !safeInput.favorite ||
+        nameLower.includes(safeInput.favorite.toLowerCase());
 
-    const favOk =
-      !userInput.favorite ||
-      nameLower.includes(userInput.favorite.toLowerCase());
-
-    return meatOk && vegOk && methodOk && favOk;
-  });
+      return meatOk && vegOk && methodOk && favOk;
+    });
 }
 
 export async function recommendHybrid(userInput, liked_dishes = []) {
+  // ✅ ป้องกัน undefined ทุกจุด
   const safeInput = {
-    meats: userInput.meats || [],
-    veggies: userInput.veggies || [],
-    types: userInput.types || [],
+    meats: Array.isArray(userInput.meats) ? userInput.meats : [],
+    veggies: Array.isArray(userInput.veggies) ? userInput.veggies : [],
+    types: Array.isArray(userInput.types) ? userInput.types : [],
     favorite: userInput.favorite || ""
   };
 
@@ -100,44 +119,37 @@ export async function recommendHybrid(userInput, liked_dishes = []) {
 
   console.log("✅ Filtered Recipes:", filteredRecipes.map(r => r.name));
 
-  // ✅ Content-Based (V3)
-  const v3Results = recommendV3(safeInput)
-    .filter(r => filteredRecipes.some(f => f.name === r.name));
+  // ✅ Content-Based (V3) → กัน undefined
+  const v3Results = (recommendV3(safeInput) || [])
+    .filter(r => r && r.name && filteredRecipes.some(f => f.name === r.name));
 
-  // ✅ เมนูโปรด (เพิ่มเฉพาะถ้าตรงกับ Filter จริง)
+  // ✅ เมนูโปรด
   if (safeInput.favorite) {
     const strictFav = filterRecipesByInput(safeInput, allRecipes).find(r =>
-      r.name.includes(safeInput.favorite)
+      (r.name || "").includes(safeInput.favorite)
     );
     if (strictFav) {
       v3Results.push({ name: strictFav.name, score: 20 });
     }
   }
 
-  // ✅ Apriori (กรองด้วย Filter)
-  const logs = await fetchLogs();
-  const transactions = transformToTransactions(logs);
-  const aprioriRules = runApriori(transactions, 0.1, 0.3);
-  const aprioriResults = suggestFromApriori(aprioriRules, liked_dishes)
-    .filter(d => filteredRecipes.some(f => f.name === d));
-
-  // ✅ LSTM (กรองด้วย Filter)
-  let lstmResults = [];
+  // ✅ Apriori
+  let aprioriResults = [];
   try {
-    if (liked_dishes.length > 0) {
-      const res = await axios.post('http://127.0.0.1:5000/recommend-lstm', {
-        liked_dishes: liked_dishes
-      });
-      lstmResults = (res.data.recommendations || [])
-        .filter(d => isNoFilter || filteredRecipes.some(f => f.name === d));
-    }
-  } catch (error) {
-    console.error('❌ LSTM API error:', error);
+    const logs = await fetchLogs();
+    const transactions = transformToTransactions(logs);
+    aprioriResults = (suggestFromApriori(
+      liked_dishes,
+      runApriori(transactions, 0.1, 0.3)
+    ) || []).filter(d => filteredRecipes.some(f => f.name === d));
+  } catch (err) {
+    console.error("❌ Apriori Error:", err);
   }
 
-  // ✅ รวมคะแนน Hybrid
+  // ✅ รวมคะแนน Hybrid (ไม่มี LSTM)
   const allResults = {};
   function addOrUpdate(dish, score, source) {
+    if (!dish) return;
     if (!allResults[dish]) {
       allResults[dish] = { score: 0, source: [] };
     }
@@ -150,11 +162,6 @@ export async function recommendHybrid(userInput, liked_dishes = []) {
   v3Results.forEach(r => addOrUpdate(r.name, r.score * 1.5, 'v3'));
   aprioriResults.forEach(d => addOrUpdate(d, 2.5, 'apriori'));
 
-  lstmResults.forEach(d => {
-    const bonus = liked_dishes.includes(d) ? 5 : 2;
-    addOrUpdate(d, bonus, 'lstm');
-  });
-
   let finalResults = Object.entries(allResults)
     .map(([name, { score, source }]) => ({ name, score, source }))
     .sort((a, b) => b.score - a.score);
@@ -163,7 +170,7 @@ export async function recommendHybrid(userInput, liked_dishes = []) {
   if (finalResults.length < 7) {
     const existingNames = finalResults.map(r => r.name);
     const additional = allRecipes
-      .filter(r => !existingNames.includes(r.name))
+      .filter(r => r && r.name && !existingNames.includes(r.name))
       .slice(0, 7 - finalResults.length)
       .map(r => ({
         name: r.name,

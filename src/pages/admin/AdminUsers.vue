@@ -21,6 +21,7 @@
           <td class="px-4 py-2">{{ user.email }}</td>
           <td class="px-4 py-2">{{ user.role || 'ผู้ใช้ทั่วไป' }}</td>
           <td class="px-4 py-2 text-right space-x-2">
+            <!-- ✅ ปุ่มลบ -->
             <button
               v-if="user.email !== currentUserEmail && user.role !== 'admin'"
               @click="deleteUser(user.id)"
@@ -29,6 +30,19 @@
               ลบ
             </button>
 
+            <!-- ✅ ปุ่ม Active / Inactive -->
+            <button
+              v-if="user.email !== currentUserEmail"
+              @click="toggleStatus(user.id, user.status)"
+              :class="user.status === 'inactive'
+                ? 'bg-green-500 hover:bg-green-600'
+                : 'bg-yellow-500 hover:bg-yellow-600'"
+              class="text-white px-3 py-1 rounded"
+            >
+              {{ user.status === 'inactive' ? 'เปิดใช้งาน' : 'ระงับ' }}
+            </button>
+
+            <!-- ✅ ปุ่มตั้งเป็นแอดมิน -->
             <button
               v-if="user.role !== 'admin'"
               @click="promoteToAdmin(user.id)"
@@ -40,14 +54,16 @@
             <button
               v-if="user.role === 'admin' && user.email !== currentUserEmail"
               @click="revokeAdmin(user.id)"
-              class="px-3 py-1 bg-yellow-500 text-white rounded hover:bg-yellow-600"
+              class="px-3 py-1 bg-purple-500 text-white rounded hover:bg-purple-600"
             >
               ถอนสิทธิ์แอดมิน
             </button>
           </td>
         </tr>
         <tr v-if="users.length === 0">
-          <td colspan="4" class="px-4 py-4 text-center text-gray-500">ยังไม่มีข้อมูลผู้ใช้</td>
+          <td colspan="4" class="px-4 py-4 text-center text-gray-500">
+            ยังไม่มีข้อมูลผู้ใช้
+          </td>
         </tr>
       </tbody>
     </table>
@@ -63,6 +79,7 @@ const users = ref([])
 const loading = ref(true)
 const currentUserEmail = JSON.parse(localStorage.getItem('user') || 'null')?.email || ''
 
+// ✅ โหลดผู้ใช้
 const fetchUsers = async () => {
   const snapshot = await getDocs(collection(db, 'users'))
   users.value = snapshot.docs.map(docSnap => ({
@@ -72,6 +89,7 @@ const fetchUsers = async () => {
   loading.value = false
 }
 
+// ✅ ลบผู้ใช้
 const deleteUser = async (id) => {
   const confirmDelete = confirm(`คุณต้องการลบผู้ใช้นี้หรือไม่?`)
   if (!confirmDelete) return
@@ -86,6 +104,20 @@ const deleteUser = async (id) => {
   }
 }
 
+// ✅ Active / Inactive
+const toggleStatus = async (id, currentStatus) => {
+  const newStatus = currentStatus === 'inactive' ? 'active' : 'inactive'
+  try {
+    await updateDoc(doc(db, 'users', id), { status: newStatus })
+    alert(newStatus === 'inactive' ? '✅ ระงับบัญชีสำเร็จ' : '✅ เปิดใช้งานสำเร็จ')
+    fetchUsers()
+  } catch (err) {
+    console.error(err)
+    alert('❌ ไม่สามารถอัปเดตสถานะได้')
+  }
+}
+
+// ✅ ตั้งเป็นแอดมิน
 const promoteToAdmin = async (id) => {
   try {
     await updateDoc(doc(db, 'users', id), {
@@ -100,6 +132,7 @@ const promoteToAdmin = async (id) => {
   }
 }
 
+// ✅ ถอนสิทธิ์แอดมิน
 const revokeAdmin = async (id) => {
   const confirmRevoke = confirm(`คุณต้องการถอนสิทธิ์แอดมินของผู้ใช้นี้หรือไม่?`)
   if (!confirmRevoke) return
@@ -123,4 +156,5 @@ onMounted(() => {
 </script>
 
 <style scoped>
+/* ใช้ Tailwind CSS ทั้งหมด */
 </style>

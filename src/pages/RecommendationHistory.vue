@@ -1,12 +1,29 @@
 <script setup>
 import { onMounted, ref } from 'vue'
 import { db } from '@/firebase/firebaseConfig'
-import { collection, query, where, orderBy, getDocs } from 'firebase/firestore'
+import { collection, query, where, orderBy, getDocs, doc, getDoc } from 'firebase/firestore'
+import { getAuth } from 'firebase/auth'
 
 const user = JSON.parse(localStorage.getItem('user') || 'null')
 const recommendations = ref([])
 const loading = ref(true)
 const recipes = ref([])
+const userDisplayName = ref('') // ✅ เพิ่มตัวแปรชื่อผู้ใช้
+
+// ✅ โหลดชื่อผู้ใช้จาก Firestore
+const fetchUserDisplayName = async () => {
+  if (!user?.uid) return
+  try {
+    const snap = await getDoc(doc(db, 'users', user.uid))
+    if (snap.exists() && snap.data().displayName) {
+      userDisplayName.value = snap.data().displayName
+    } else {
+      userDisplayName.value = user.email
+    }
+  } catch {
+    userDisplayName.value = user.email
+  }
+}
 
 // ✅ โหลด recipes ทั้งหมดเพื่อใช้จับคู่ ingredients
 const fetchRecipes = async () => {
@@ -29,7 +46,6 @@ const fetchHistory = async () => {
       const recs = data.resultData || []
 
       recs.forEach(item => {
-        // ✅ จับคู่ ingredients จาก recipes
         const found = recipes.value.find(r => r.name === item.name)
         result.push({
           ...item,
@@ -51,6 +67,7 @@ const fetchHistory = async () => {
 
 onMounted(async () => {
   if (user?.email) {
+    await fetchUserDisplayName()
     await fetchRecipes()
     await fetchHistory()
   }
@@ -67,7 +84,9 @@ const formatDate = (date) => {
 
 <template>
   <div class="min-h-screen bg-gradient-to-tr from-blue-50 via-white to-purple-50 py-12 px-6 max-w-5xl mx-auto">
-    <h1 class="text-3xl font-bold text-center text-indigo-600 mb-8">📚 ประวัติการแนะนำเมนู</h1>
+    <h1 class="text-3xl font-bold text-center text-indigo-600 mb-8">
+      📚 ประวัติการแนะนำเมนูของ {{ userDisplayName || '...' }}
+    </h1>
 
     <div v-if="loading" class="text-center text-gray-500">กำลังโหลด...</div>
     <div v-else-if="recommendations.length === 0" class="text-center text-gray-500">ยังไม่มีประวัติการแนะนำ</div>

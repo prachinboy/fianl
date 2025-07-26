@@ -43,6 +43,8 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { getAuth, signInWithEmailAndPassword } from 'firebase/auth'
+import { db } from '@/firebase/firebaseConfig'
+import { doc, getDoc } from 'firebase/firestore'
 
 const email = ref('')
 const password = ref('')
@@ -53,6 +55,17 @@ const loginUser = async () => {
     const auth = getAuth()
     const userCredential = await signInWithEmailAndPassword(auth, email.value, password.value)
     const user = userCredential.user
+
+    // ✅ ตรวจสอบสถานะ active/inactive จาก Firestore
+    const snap = await getDoc(doc(db, 'users', user.uid))
+    if (snap.exists()) {
+      const data = snap.data()
+      if (data.status === 'inactive') {
+        alert('❌ บัญชีนี้ถูกระงับการใช้งาน กรุณาติดต่อผู้ดูแลระบบ')
+        router.push('/account-suspended')
+        return
+      }
+    }
 
     // ✅ เก็บข้อมูล user ลง localStorage
     localStorage.setItem('user', JSON.stringify({
