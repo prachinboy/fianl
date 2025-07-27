@@ -1,52 +1,47 @@
 <template>
-  <div class="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 py-12 px-6 max-w-5xl mx-auto">
-    <h1 class="text-3xl font-bold text-center text-indigo-600 mb-8">📅 เมนูแนะนำรายสัปดาห์</h1>
+  <div class="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 py-12 px-6 max-w-4xl mx-auto">
+    <h1 class="text-3xl font-bold text-center text-indigo-600 mb-8">🍽️ เมนูแนะนำประจำวัน</h1>
 
-    <div v-if="weeklyResults.length === 0" class="text-center text-gray-500">ไม่มีเมนูแนะนำ</div>
+    <div v-if="menus.length === 0" class="text-center text-gray-500">ไม่มีเมนูแนะนำ</div>
 
     <div class="space-y-6">
       <div
-        v-for="(day, index) in weeklyResults"
+        v-for="(menu, index) in menus"
         :key="index"
-        class="bg-white p-5 rounded-xl shadow-md border border-indigo-200"
+        class="bg-white p-4 rounded-xl shadow hover:shadow-md transition border border-indigo-200"
       >
-        <h2 class="text-xl font-bold text-indigo-700 mb-4">📅 {{ day.day }}</h2>
+        <h2 class="text-lg font-bold text-indigo-600 mb-1">
+          {{ mealTime[index] }}: {{ menu.name }}
+        </h2>
+        <p class="text-sm text-gray-600 mb-2">คะแนนแนะนำ: {{ menu.score }}</p>
 
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div
-            v-for="meal in day.meals"
-            :key="meal.time"
-            class="bg-indigo-50 p-4 rounded-lg shadow hover:shadow-lg transition"
+        <div class="flex gap-2">
+          <button
+            @click="toggleLike(menu.name)"
+            class="px-3 py-1 rounded bg-pink-100 text-pink-600 hover:bg-pink-200"
           >
-            <h3 class="text-lg font-semibold text-indigo-600 mb-1">
-              {{ meal.time }}: {{ meal.name }}
-            </h3>
-            <p class="text-sm text-gray-600 mb-3">คะแนนแนะนำ: {{ meal.score.toFixed(1) }}</p>
+            ❤️ {{ likedMenus.includes(menu.name) ? 'ยกเลิก' : 'ถูกใจ' }}
+          </button>
 
-            <div class="flex gap-2">
-              <button
-                @click="toggleLike(meal.name)"
-                class="px-3 py-1 bg-pink-100 text-pink-600 rounded hover:bg-pink-200"
-              >
-                ❤️ {{ likedMenus.includes(meal.name) ? 'ยกเลิก' : 'ถูกใจ' }}
-              </button>
-              <button
-                @click="openReviewModal(meal.name)"
-                class="px-3 py-1 bg-yellow-400 text-white rounded hover:bg-yellow-500"
-              >
-                📝 รีวิว
-              </button>
-            </div>
-          </div>
+          <button
+            @click="openReviewModal(menu.name)"
+            class="px-3 py-1 rounded bg-yellow-400 text-white hover:bg-yellow-500"
+          >
+            📝 รีวิว
+          </button>
         </div>
+
+        <button
+          @click="goToDetail(menu.name)"
+          class="mt-3 w-full py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
+        >
+          ดูรายละเอียดเมนู
+        </button>
       </div>
     </div>
 
     <!-- ✅ Modal รีวิว -->
-    <div
-      v-if="isReviewModalOpen"
-      class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50"
-    >
+    <div v-if="isReviewModalOpen" class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50">
       <div class="bg-white rounded-lg shadow-lg p-6 max-w-md w-full">
         <h2 class="text-lg font-bold text-indigo-600 mb-4">📝 รีวิวเมนู: {{ currentMenuName }}</h2>
 
@@ -68,18 +63,8 @@
         ></textarea>
 
         <div class="flex justify-end gap-2">
-          <button
-            @click="closeReviewModal"
-            class="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400"
-          >
-            ❌ ยกเลิก
-          </button>
-          <button
-            @click="submitReview"
-            class="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
-          >
-            ✅ บันทึก
-          </button>
+          <button @click="closeReviewModal" class="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400">❌ ยกเลิก</button>
+          <button @click="submitReview" class="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600">✅ บันทึก</button>
         </div>
       </div>
     </div>
@@ -88,16 +73,17 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { db } from '@/firebase/firebaseConfig'
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
 import { getAuth } from 'firebase/auth'
 
 const route = useRoute()
+const router = useRouter()
 
-// ✅ ข้อมูล 7 วัน
-const weeklyResults = ref([])
+const menus = ref([])
 const likedMenus = ref([])
+const mealTime = ['เช้า', 'กลางวัน', 'เย็น']
 
 // ✅ Modal รีวิว
 const isReviewModalOpen = ref(false)
@@ -107,7 +93,7 @@ const reviewComment = ref('')
 
 onMounted(() => {
   if (route.query.result) {
-    weeklyResults.value = JSON.parse(route.query.result)
+    menus.value = JSON.parse(route.query.result)
   }
 })
 
@@ -139,6 +125,7 @@ const toggleLike = async (menuName) => {
   }
 }
 
+// ✅ เปิด-ปิด Modal รีวิว
 const openReviewModal = (menuName) => {
   currentMenuName.value = menuName
   reviewRating.value = 5
@@ -150,6 +137,7 @@ const closeReviewModal = () => {
   isReviewModalOpen.value = false
 }
 
+// ✅ บันทึกรีวิว
 const submitReview = async () => {
   const auth = getAuth()
   const user = auth.currentUser
@@ -172,6 +160,10 @@ const submitReview = async () => {
     console.error('❌ Firestore error:', err)
     alert('เกิดข้อผิดพลาด: ' + err.message)
   }
+}
+
+const goToDetail = (menuName) => {
+  router.push({ path: '/menu-detail', query: { menu: menuName } })
 }
 </script>
 

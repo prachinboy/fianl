@@ -1,6 +1,6 @@
 <template>
   <div class="weekly-recommendation-container">
-    <h1>📅 แนะนำเมนูอาหารรายสัปดาห์ (7 วัน)</h1>
+    <h1>🍳 แนะนำอาหารรายวัน</h1>
 
     <div class="selection-box">
       <label>เลือกเนื้อสัตว์ที่ชอบ</label>
@@ -74,9 +74,7 @@ import { useRouter } from 'vue-router'
 import { db } from '@/firebase/firebaseConfig'
 import { collection, addDoc, serverTimestamp, doc, getDoc } from 'firebase/firestore'
 import { getAuth } from 'firebase/auth'
-
-// ✅ ใช้ฟังก์ชันใหม่ที่เราเพิ่มใน recommendHybrid.js
-import { recommendWeekly7Days } from '@/utils/recommendHybrid'
+import { recommendHybrid } from '@/utils/recommendHybrid'
 
 const selectedMeats = ref([])
 const selectedVeggies = ref([])
@@ -85,7 +83,7 @@ const selectedSpices = ref([])
 const favoriteDish = ref('')
 const router = useRouter()
 
-// ✅ ตัวเลือกวัตถุดิบคัดลอกจากของเดิม
+// ✅ คัดลอกจาก WeeklyRecommendation.vue
 const meatOptions = [
   { name: 'ไก่' }, { name: 'หมู' }, { name: 'เนื้อ' }, { name: 'เป็ด' }, { name: 'กุ้ง' }, { name: 'ปลา' },
   { name: 'หมึก' }, { name: 'หมูยอ' }, { name: 'บะหมี่' }, { name: 'หมูแดง' }, { name: 'หมี่' },
@@ -120,41 +118,41 @@ const combinedSpices = [
 ]
 
 const handleSubmit = async () => {
-  const auth = getAuth()
-  const user = auth.currentUser
-  if (!user) {
-    alert('❌ กรุณา login ก่อนทำรายการ')
-    return
-  }
-
-  const docSnap = await getDoc(doc(db, 'users', user.uid))
-  const liked = docSnap.exists() ? docSnap.data().liked_dishes || [] : []
-
-  const userInput = {
-    meats: selectedMeats.value.map(m => m.name),
-    veggies: selectedVeggies.value.map(v => v.name),
-    types: selectedTypes.value.map(t => t.name),
-    favorite: favoriteDish.value
-  }
-
   try {
-    // ✅ ใช้ฟังก์ชันใหม่ แนะนำ 7 วัน × 3 มื้อ
-    const weeklyResults = await recommendWeekly7Days(userInput, liked)
+    const auth = getAuth()
+    const user = auth.currentUser
+    if (!user) {
+      alert('❌ กรุณา login ก่อนทำรายการ')
+      return
+    }
+
+    const docSnap = await getDoc(doc(db, 'users', user.uid))
+    const liked = docSnap.exists() ? docSnap.data().liked_dishes || [] : []
+
+    const userInput = {
+      meats: selectedMeats.value.map(m => m.name),
+      veggies: selectedVeggies.value.map(v => v.name),
+      types: selectedTypes.value.map(t => t.name),
+      favorite: favoriteDish.value
+    }
+
+    let hybridResults = await recommendHybrid(userInput, liked)
+    hybridResults = hybridResults.slice(0, 3) // ✅ 3 เมนู: เช้า กลางวัน เย็น
 
     await addDoc(collection(db, 'recommend_logs'), {
       email: user.email,
       timestamp: serverTimestamp(),
-      type: "weekly-7days",
-      resultData: weeklyResults
+      type: "daily",
+      resultData: hybridResults
     })
 
     router.push({
-      path: '/menu-result',
-      query: { result: JSON.stringify(weeklyResults) }
+      path: '/daily-menu-result',
+      query: { result: JSON.stringify(hybridResults) }
     })
   } catch (err) {
     console.error('❌ Firestore error:', err)
-    alert('เกิดข้อผิดพลาดในการส่งข้อมูล กรุณาลองใหม่')
+    alert('เกิดข้อผิดพลาด: ' + err.message)
   }
 }
 </script>
@@ -197,8 +195,8 @@ h1 {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
-  max-height: 100px;
-  overflow-y: auto;
+  max-height: 100px; /* ✅ จำกัดความสูง */
+  overflow-y: auto;  /* ✅ เลื่อนแทนล้น */
   overflow-x: hidden;
 }
 .custom-select .multiselect__tag {

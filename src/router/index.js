@@ -54,7 +54,18 @@ const routes = [
     path: '/account-suspended',
     name: 'AccountSuspended',
     component: () => import('@/views/AccountSuspended.vue')
-  }
+  },
+  {
+  path: '/daily-recommendation',
+  name: 'DailyRecommendation',
+  component: () => import('@/views/DailyRecommendation.vue')
+},
+{
+  path: '/daily-menu-result',
+  name: 'DailyMenuResult',
+  component: () => import('@/views/DailyMenuResult.vue')
+}
+
 ]
 
 const router = createRouter({

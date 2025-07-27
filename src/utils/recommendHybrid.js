@@ -14,14 +14,14 @@ const synonyms = {
 };
 
 // ✅ ดึง recipes จาก Firestore + กัน null ทุก field
-async function fetchRecipesFromFirestore() {
+export async function fetchRecipesFromFirestore() {
   const snapshot = await getDocs(collection(db, "recipes"));
   return snapshot.docs
     .map(doc => {
       const data = doc.data() || {};
       return {
         id: doc.id,
-        name: data.name || "", // ป้องกันไม่มีชื่อ
+        name: data.name || "",
         ingredients: Array.isArray(data.ingredients) ? data.ingredients : [],
         method: data.method || "",
         type: data.type || ""
@@ -30,7 +30,7 @@ async function fetchRecipesFromFirestore() {
     .filter(r => r.name); // ต้องมีชื่อเท่านั้น
 }
 
-// ✅ ฟังก์ชันกรองแบบ AND Logic (กัน undefined ทุกกรณี)
+// ✅ ฟังก์ชันกรองแบบ AND Logic
 function filterRecipesByInput(userInput, recipes) {
   const safeInput = {
     meats: Array.isArray(userInput.meats) ? userInput.meats : [],
@@ -80,8 +80,8 @@ function filterRecipesByInput(userInput, recipes) {
     });
 }
 
+// ✅ ฟังก์ชันแนะนำเมนู Hybrid เดิม
 export async function recommendHybrid(userInput, liked_dishes = []) {
-  // ✅ ป้องกัน undefined ทุกจุด
   const safeInput = {
     meats: Array.isArray(userInput.meats) ? userInput.meats : [],
     veggies: Array.isArray(userInput.veggies) ? userInput.veggies : [],
@@ -89,7 +89,6 @@ export async function recommendHybrid(userInput, liked_dishes = []) {
     favorite: userInput.favorite || ""
   };
 
-  // ✅ โหลด liked_dishes ถ้าไม่ได้ส่งเข้ามา
   if (!liked_dishes.length) {
     const auth = getAuth();
     const user = auth.currentUser;
@@ -119,11 +118,9 @@ export async function recommendHybrid(userInput, liked_dishes = []) {
 
   console.log("✅ Filtered Recipes:", filteredRecipes.map(r => r.name));
 
-  // ✅ Content-Based (V3) → กัน undefined
   const v3Results = (recommendV3(safeInput) || [])
     .filter(r => r && r.name && filteredRecipes.some(f => f.name === r.name));
 
-  // ✅ เมนูโปรด
   if (safeInput.favorite) {
     const strictFav = filterRecipesByInput(safeInput, allRecipes).find(r =>
       (r.name || "").includes(safeInput.favorite)
@@ -133,7 +130,6 @@ export async function recommendHybrid(userInput, liked_dishes = []) {
     }
   }
 
-  // ✅ Apriori
   let aprioriResults = [];
   try {
     const logs = await fetchLogs();
@@ -146,7 +142,6 @@ export async function recommendHybrid(userInput, liked_dishes = []) {
     console.error("❌ Apriori Error:", err);
   }
 
-  // ✅ รวมคะแนน Hybrid (ไม่มี LSTM)
   const allResults = {};
   function addOrUpdate(dish, score, source) {
     if (!dish) return;
@@ -166,7 +161,6 @@ export async function recommendHybrid(userInput, liked_dishes = []) {
     .map(([name, { score, source }]) => ({ name, score, source }))
     .sort((a, b) => b.score - a.score);
 
-  // ✅ เติมเมนู Extra ให้ครบ 7 เมนูถ้าผลลัพธ์ไม่พอ
   if (finalResults.length < 7) {
     const existingNames = finalResults.map(r => r.name);
     const additional = allRecipes
@@ -181,4 +175,48 @@ export async function recommendHybrid(userInput, liked_dishes = []) {
   }
 
   return finalResults.slice(0, 7);
+}
+
+// ✅ ฟังก์ชันใหม่: แนะนำ 7 วัน × 3 มื้อ (ไม่ซ้ำ)
+export async function recommendWeekly7Days(userInput, liked_dishes = []) {
+  const days = ["จันทร์", "อังคาร", "พุธ", "พฤหัสบดี", "ศุกร์", "เสาร์", "อาทิตย์"];
+  const weeklyResults = [];
+  const usedMenus = new Set(); // ✅ เก็บเมนูที่ใช้แล้ว
+
+  for (let i = 0; i < 7; i++) {
+    let dailyMenus = await recommendHybrid(userInput, liked_dishes);
+
+    // ✅ ตัดเมนูที่เคยถูกใช้แล้วออก
+    dailyMenus = dailyMenus.filter(m => !usedMenus.has(m.name));
+
+    // ✅ ถ้าเมนูเหลือไม่ครบ 3 มื้อ → เติมเมนูสุ่มที่ยังไม่ใช้
+    if (dailyMenus.length < 3) {
+      const allMenus = (await fetchRecipesFromFirestore())
+        .filter(r => !usedMenus.has(r.name));
+      while (dailyMenus.length < 3 && allMenus.length > 0) {
+        const randomIndex = Math.floor(Math.random() * allMenus.length);
+        dailyMenus.push({
+          name: allMenus[randomIndex].name,
+          score: 0.5,
+          source: ["extra"]
+        });
+        allMenus.splice(randomIndex, 1);
+      }
+    }
+
+    // ✅ บันทึกเมนูที่ใช้แล้ว
+    dailyMenus.forEach(m => usedMenus.add(m.name));
+
+    // ✅ เพิ่มลง weeklyResults
+    weeklyResults.push({
+      day: `วัน${days[i]}`,
+      meals: [
+        { time: "เช้า", name: dailyMenus[0]?.name || "-", score: dailyMenus[0]?.score || 0 },
+        { time: "กลางวัน", name: dailyMenus[1]?.name || "-", score: dailyMenus[1]?.score || 0 },
+        { time: "เย็น", name: dailyMenus[2]?.name || "-", score: dailyMenus[2]?.score || 0 }
+      ]
+    });
+  }
+
+  return weeklyResults;
 }
