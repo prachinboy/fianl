@@ -32,19 +32,20 @@ onAuthStateChanged(getAuth(), async (u) => {
 
   user.value = u
 
-  // ✅ เปลี่ยน uid เป็น email ตรงนี้
-  const userRef = doc(db, 'users', u.email)
+  // ✅ เปลี่ยนมาใช้ uid เพื่อความเสถียร
+  const userRef = doc(db, 'users', u.uid)
   const userSnap = await getDoc(userRef)
   if (userSnap.exists()) {
     const data = userSnap.data()
     displayName.value = data.displayName || ''
     avatarUrl.value = data.avatarUrl || ''
-    isAdmin.value = data.role === 'admin'
+    isAdmin.value = data.isAdmin === true || data.role === 'admin'
+
   }
 
   const likedQuery = query(
     collection(db, 'liked_dishes_logs'),
-    where('email', '==', u.email)
+    where('email', '==', u.email) // ❗ ยังใช้ email สำหรับ query logs ได้อยู่
   )
   const unsubLikes = onSnapshot(likedQuery, (snapshot) => {
     likedDishes.value = snapshot.docs.map((doc) => ({
@@ -91,6 +92,7 @@ const logout = () => {
   router.push('/login')
 }
 </script>
+
 
 
 <template>
