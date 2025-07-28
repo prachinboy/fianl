@@ -29,8 +29,9 @@
 
 <script setup>
 import { useRouter } from 'vue-router'
+import { useAdminRole } from '@/utils/useAdminRole.js'
 const router = useRouter()
-
+const { isAdmin } = useAdminRole()
 const goToUsers = () => router.push('/admin/users')
 const goToMenus = () => router.push('/admin/menus')
 const goToStats = () => router.push('/admin/stats')

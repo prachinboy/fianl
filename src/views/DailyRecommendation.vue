@@ -139,10 +139,11 @@ const handleSubmit = async () => {
     let hybridResults = await recommendHybrid(userInput, liked)
     hybridResults = hybridResults.slice(0, 3) // ✅ 3 เมนู: เช้า กลางวัน เย็น
 
+    // ✅ เพิ่ม type: 'daily' เข้าไปในการบันทึก
     await addDoc(collection(db, 'recommend_logs'), {
       email: user.email,
       timestamp: serverTimestamp(),
-      type: "daily",
+      type: 'daily', // ✅ ตรงนี้สำคัญ
       resultData: hybridResults
     })
 
@@ -155,6 +156,7 @@ const handleSubmit = async () => {
     alert('เกิดข้อผิดพลาด: ' + err.message)
   }
 }
+
 </script>
 
 <style scoped>

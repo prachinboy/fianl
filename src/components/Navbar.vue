@@ -56,5 +56,7 @@
 
 <script setup>
 import { useRoute } from 'vue-router'
+import { useAdminRole } from '@/utils/useAdminRole.js'
 const route = useRoute()
+const { isAdmin } = useAdminRole()
 </script>

@@ -65,6 +65,7 @@ const logRandomMenu = async () => {
       action: "random_menu",
       menuName: randomMenuItem.value?.name || "-",
       timestamp: serverTimestamp(),
+       type: 'randommenu',
     });
     console.log("✅ บันทึกการสุ่มเมนูสำเร็จ");
   } catch (error) {

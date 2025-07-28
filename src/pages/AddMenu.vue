@@ -19,18 +19,21 @@ import { ref, onMounted } from 'vue'
 import { getAuth, onAuthStateChanged } from 'firebase/auth'
 import { db } from '@/firebase/firebaseConfig'
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
-
+import { useAdminRole } from '@/utils/useAdminRole.js'
 const name = ref('')
 const ingredients = ref('')
 const method = ref('')
 const calories = ref('')
-const isAdmin = ref(false)
+const { isAdmin } = useAdminRole()
 
 onMounted(() => {
   const auth = getAuth()
-  onAuthStateChanged(auth, (user) => {
-    if (user && user.email === 'athipkusri@gmail.com') {
-      isAdmin.value = true
+  onAuthStateChanged(auth, async (user) => {
+    if (user) {
+      const userDoc = await getDoc(doc(db, 'users', user.uid))
+      if (userDoc.exists() && userDoc.data().role === 'admin') {
+        isAdmin.value = true
+      }
     }
   })
 })

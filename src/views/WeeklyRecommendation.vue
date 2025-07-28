@@ -1,3 +1,4 @@
+
 <template>
   <div class="weekly-recommendation-container">
     <h1>📅 แนะนำเมนูอาหารรายสัปดาห์ (7 วัน)</h1>
@@ -72,10 +73,8 @@ import { ref } from 'vue'
 import Multiselect from 'vue-multiselect'
 import { useRouter } from 'vue-router'
 import { db } from '@/firebase/firebaseConfig'
-import { collection, addDoc, serverTimestamp, doc, getDoc } from 'firebase/firestore'
+import { collection, addDoc, serverTimestamp, doc, getDoc, updateDoc } from 'firebase/firestore'
 import { getAuth } from 'firebase/auth'
-
-// ✅ ใช้ฟังก์ชันใหม่ที่เราเพิ่มใน recommendHybrid.js
 import { recommendWeekly7Days } from '@/utils/recommendHybrid'
 
 const selectedMeats = ref([])
@@ -85,7 +84,6 @@ const selectedSpices = ref([])
 const favoriteDish = ref('')
 const router = useRouter()
 
-// ✅ ตัวเลือกวัตถุดิบคัดลอกจากของเดิม
 const meatOptions = [
   { name: 'ไก่' }, { name: 'หมู' }, { name: 'เนื้อ' }, { name: 'เป็ด' }, { name: 'กุ้ง' }, { name: 'ปลา' },
   { name: 'หมึก' }, { name: 'หมูยอ' }, { name: 'บะหมี่' }, { name: 'หมูแดง' }, { name: 'หมี่' },
@@ -138,13 +136,22 @@ const handleSubmit = async () => {
   }
 
   try {
-    // ✅ ใช้ฟังก์ชันใหม่ แนะนำ 7 วัน × 3 มื้อ
     const weeklyResults = await recommendWeekly7Days(userInput, liked)
+
+    // ✅ บันทึกเมนูที่ได้ลง liked_dishes
+    const allMenus = weeklyResults.flatMap(day =>
+      day.meals.map(meal => meal.name).filter(name => name && name !== "-")
+    )
+    const userRef = doc(db, 'users', user.uid)
+    const existingSnap = await getDoc(userRef)
+    const currentLiked = existingSnap.exists() ? existingSnap.data().liked_dishes || [] : []
+    const updatedLiked = Array.from(new Set([...currentLiked, ...allMenus]))
+    await updateDoc(userRef, { liked_dishes: updatedLiked })
 
     await addDoc(collection(db, 'recommend_logs'), {
       email: user.email,
       timestamp: serverTimestamp(),
-      type: "weekly-7days",
+      type: "weekly",
       resultData: weeklyResults
     })
 

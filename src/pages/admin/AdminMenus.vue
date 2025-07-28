@@ -73,6 +73,7 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { db } from '@/firebase/firebaseConfig'
 import { collection, getDocs, deleteDoc, doc, updateDoc } from 'firebase/firestore'
+import { useAdminRole } from '@/utils/useAdminRole.js'
 
 const menus = ref([])
 const router = useRouter()
@@ -81,7 +82,7 @@ const router = useRouter()
 const editingMenu = ref(null)
 const editData = ref({ name: '', type: '' })
 const editIngredients = ref('')
-
+const { isAdmin } = useAdminRole()
 // ✅ โหลดเมนูจาก Firestore
 const fetchMenus = async () => {
   const snapshot = await getDocs(collection(db, 'recipes'))

@@ -74,11 +74,12 @@
 import { ref, onMounted } from 'vue'
 import { db } from '@/firebase/firebaseConfig'
 import { collection, getDocs, deleteDoc, updateDoc, doc } from 'firebase/firestore'
+import { useAdminRole } from '@/utils/useAdminRole.js'
 
 const users = ref([])
 const loading = ref(true)
 const currentUserEmail = JSON.parse(localStorage.getItem('user') || 'null')?.email || ''
-
+const { isAdmin } = useAdminRole()
 // ✅ โหลดผู้ใช้
 const fetchUsers = async () => {
   const snapshot = await getDocs(collection(db, 'users'))

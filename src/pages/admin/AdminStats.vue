@@ -42,12 +42,12 @@
       <div v-if="viewMode === 'random'" class="bg-white shadow-md rounded-xl p-4">
         <h2 class="text-lg font-semibold text-pink-600 mb-4">🎲 แสดงสถิติสุ่มจากบางวัน</h2>
         <ul class="text-sm space-y-2 text-gray-700">
-          <li v-for="(item, index) in randomStats" :key="index"
+          <li v-for="(item, index) in groupedRandomStats" :key="index"
               class="p-2 border rounded flex justify-between hover:bg-gray-50">
             <span>📅 {{ item.date }}</span>
             <span class="font-bold">{{ item.count }} ครั้ง</span>
           </li>
-          <li v-if="randomStats.length === 0" class="text-gray-400">ไม่มีข้อมูลสำหรับแสดง</li>
+          <li v-if="groupedRandomStats.length === 0" class="text-gray-400">ไม่มีข้อมูลสำหรับแสดง</li>
         </ul>
       </div>
     </div>
@@ -59,36 +59,39 @@ import { ref, onMounted, computed } from 'vue'
 import { collection, onSnapshot } from 'firebase/firestore'
 import { db } from '@/firebase/firebaseConfig'
 import dayjs from 'dayjs'
+import { useAdminRole } from '@/utils/useAdminRole.js'
 
 const dailyStats = ref([])
 const weeklyStats = ref([])
 const randomStats = ref([])
 const viewMode = ref('daily')
+const { isAdmin } = useAdminRole()
 
 onMounted(() => {
   const dailyMap = new Map()
   const weeklyMap = new Map()
+  const randomMap = new Map()
 
-  // ✅ Real-time
   onSnapshot(collection(db, 'recommend_logs'), (snapshot) => {
     dailyMap.clear()
     weeklyMap.clear()
+    randomMap.clear()
 
     snapshot.forEach(doc => {
-      const { timestamp } = doc.data()
+      const { timestamp, type } = doc.data()
       if (!timestamp) return
-
       const date = dayjs(timestamp.toDate()).add(7, 'hour').format('YYYY-MM-DD')
       const week = dayjs(timestamp.toDate()).add(7, 'hour').startOf('isoWeek').format('YYYY-[W]WW')
 
-      // รายวัน
-      if (!dailyMap.has(date)) dailyMap.set(date, 1)
-      else dailyMap.set(date, dailyMap.get(date) + 1)
-
-      // รายสัปดาห์
-      if (!weeklyMap.has(week)) weeklyMap.set(week, new Map())
-      const weekDays = weeklyMap.get(week)
-      weekDays.set(date, (weekDays.get(date) || 0) + 1)
+      if (type === 'daily') {
+        dailyMap.set(date, (dailyMap.get(date) || 0) + 1)
+      } else if (type === 'weekly') {
+        if (!weeklyMap.has(week)) weeklyMap.set(week, new Map())
+        const weekDays = weeklyMap.get(week)
+        weekDays.set(date, (weekDays.get(date) || 0) + 1)
+      } else if (type === 'randommenu') {
+        randomMap.set(date, (randomMap.get(date) || 0) + 1)
+      }
     })
 
     dailyStats.value = Array.from(dailyMap.entries()).map(([date, count]) => ({ date, count }))
@@ -96,8 +99,7 @@ onMounted(() => {
       week,
       days: Array.from(daysMap.entries()).map(([date, count]) => ({ date, count }))
     }))
-
-    refreshRandom() // ✅ สุ่มใหม่อัตโนมัติ
+    randomStats.value = Array.from(randomMap.entries()).map(([date, count]) => ({ date, count }))
   })
 })
 
@@ -113,14 +115,9 @@ const weeklyGroupedDays = computed(() => {
   return grouped
 })
 
-// ✅ สุ่ม 7 วัน แต่เรียงตามวันที่ล่าสุด → ย้อนหลัง
-const refreshRandom = () => {
-  const shuffled = [...dailyStats.value]
-    .sort(() => Math.random() - 0.5)
-    .slice(0, 7)
-    .sort((a, b) => (a.date < b.date ? 1 : -1))
-  randomStats.value = shuffled
-}
+const groupedRandomStats = computed(() =>
+  randomStats.value.slice().sort((a, b) => (a.date < b.date ? 1 : -1))
+)
 
 const toggleBtnClass = (mode) =>
   `px-4 py-2 rounded-xl font-semibold ${

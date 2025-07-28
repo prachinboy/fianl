@@ -13,7 +13,7 @@ const synonyms = {
   "เป็ด": ["เป็ด", "duck"]
 };
 
-// ✅ ดึง recipes จาก Firestore + กัน null ทุก field
+// ✅ ดึง recipes จาก Firestore
 export async function fetchRecipesFromFirestore() {
   const snapshot = await getDocs(collection(db, "recipes"));
   return snapshot.docs
@@ -27,11 +27,11 @@ export async function fetchRecipesFromFirestore() {
         type: data.type || ""
       };
     })
-    .filter(r => r.name); // ต้องมีชื่อเท่านั้น
+    .filter(r => r.name);
 }
 
-// ✅ ฟังก์ชันกรองแบบ AND Logic
-function filterRecipesByInput(userInput, recipes) {
+// ✅ ฟังก์ชันกรองแบบเข้มงวด
+export function filterRecipesByInput(userInput, recipes) {
   const safeInput = {
     meats: Array.isArray(userInput.meats) ? userInput.meats : [],
     veggies: Array.isArray(userInput.veggies) ? userInput.veggies : [],
@@ -48,15 +48,24 @@ function filterRecipesByInput(userInput, recipes) {
       const methodText = (recipe.method || "").toLowerCase();
       const nameLower = (recipe.name || "").toLowerCase();
 
-      const meatOk =
+      const hasSelectedMeat =
         !safeInput.meats.length ||
-        safeInput.meats.every(m => {
-          const group = synonyms[m] || [m];
-          return group.some(syn =>
+        safeInput.meats.some(m =>
+          (synonyms[m] || [m]).some(syn =>
             ing.some(i => i.includes(syn.toLowerCase())) ||
             nameLower.includes(syn.toLowerCase())
-          );
-        });
+          )
+        );
+
+      const noOtherMeat =
+        !safeInput.meats.length ||
+        !ing.some(i =>
+          Object.keys(synonyms)
+            .filter(key => !safeInput.meats.includes(key))
+            .some(other =>
+              (synonyms[other] || [other]).some(syn => i.includes(syn.toLowerCase()))
+            )
+        );
 
       const vegOk =
         !safeInput.veggies.length ||
@@ -76,11 +85,11 @@ function filterRecipesByInput(userInput, recipes) {
         !safeInput.favorite ||
         nameLower.includes(safeInput.favorite.toLowerCase());
 
-      return meatOk && vegOk && methodOk && favOk;
+      return hasSelectedMeat && noOtherMeat && vegOk && methodOk && favOk;
     });
 }
 
-// ✅ ฟังก์ชันแนะนำเมนู Hybrid เดิม
+// ✅ ฟังก์ชันแนะนำเมนู Hybrid (กรองเข้มงวด 100%)
 export async function recommendHybrid(userInput, liked_dishes = []) {
   const safeInput = {
     meats: Array.isArray(userInput.meats) ? userInput.meats : [],
@@ -106,23 +115,15 @@ export async function recommendHybrid(userInput, liked_dishes = []) {
   }
 
   const allRecipes = await fetchRecipesFromFirestore();
-  const isNoFilter =
-    !safeInput.meats.length &&
-    !safeInput.veggies.length &&
-    !safeInput.types.length &&
-    !safeInput.favorite;
+  const strictFiltered = filterRecipesByInput(safeInput, allRecipes);
 
-  const filteredRecipes = isNoFilter
-    ? allRecipes
-    : filterRecipesByInput(safeInput, allRecipes);
-
-  console.log("✅ Filtered Recipes:", filteredRecipes.map(r => r.name));
+  console.log("✅ Filtered Recipes:", strictFiltered.map(r => r.name));
 
   const v3Results = (recommendV3(safeInput) || [])
-    .filter(r => r && r.name && filteredRecipes.some(f => f.name === r.name));
+    .filter(r => r && r.name && strictFiltered.some(f => f.name === r.name));
 
   if (safeInput.favorite) {
-    const strictFav = filterRecipesByInput(safeInput, allRecipes).find(r =>
+    const strictFav = strictFiltered.find(r =>
       (r.name || "").includes(safeInput.favorite)
     );
     if (strictFav) {
@@ -137,7 +138,7 @@ export async function recommendHybrid(userInput, liked_dishes = []) {
     aprioriResults = (suggestFromApriori(
       liked_dishes,
       runApriori(transactions, 0.1, 0.3)
-    ) || []).filter(d => filteredRecipes.some(f => f.name === d));
+    ) || []).filter(d => strictFiltered.some(f => f.name === d));
   } catch (err) {
     console.error("❌ Apriori Error:", err);
   }
@@ -163,7 +164,7 @@ export async function recommendHybrid(userInput, liked_dishes = []) {
 
   if (finalResults.length < 7) {
     const existingNames = finalResults.map(r => r.name);
-    const additional = allRecipes
+    const additional = strictFiltered
       .filter(r => r && r.name && !existingNames.includes(r.name))
       .slice(0, 7 - finalResults.length)
       .map(r => ({
@@ -177,37 +178,34 @@ export async function recommendHybrid(userInput, liked_dishes = []) {
   return finalResults.slice(0, 7);
 }
 
-// ✅ ฟังก์ชันใหม่: แนะนำ 7 วัน × 3 มื้อ (ไม่ซ้ำ)
+// ✅ ฟังก์ชันแนะนำรายสัปดาห์ 7 วัน × 3 มื้อ (กรองเข้มงวดทุกจุด)
 export async function recommendWeekly7Days(userInput, liked_dishes = []) {
   const days = ["จันทร์", "อังคาร", "พุธ", "พฤหัสบดี", "ศุกร์", "เสาร์", "อาทิตย์"];
   const weeklyResults = [];
-  const usedMenus = new Set(); // ✅ เก็บเมนูที่ใช้แล้ว
+  const usedMenus = new Set();
+
+  const allRecipes = await fetchRecipesFromFirestore();
+  const strictFiltered = filterRecipesByInput(userInput, allRecipes);
 
   for (let i = 0; i < 7; i++) {
     let dailyMenus = await recommendHybrid(userInput, liked_dishes);
-
-    // ✅ ตัดเมนูที่เคยถูกใช้แล้วออก
     dailyMenus = dailyMenus.filter(m => !usedMenus.has(m.name));
 
-    // ✅ ถ้าเมนูเหลือไม่ครบ 3 มื้อ → เติมเมนูสุ่มที่ยังไม่ใช้
     if (dailyMenus.length < 3) {
-      const allMenus = (await fetchRecipesFromFirestore())
-        .filter(r => !usedMenus.has(r.name));
-      while (dailyMenus.length < 3 && allMenus.length > 0) {
-        const randomIndex = Math.floor(Math.random() * allMenus.length);
+      const filteredExtra = strictFiltered.filter(r => !usedMenus.has(r.name));
+      while (dailyMenus.length < 3 && filteredExtra.length > 0) {
+        const randomIndex = Math.floor(Math.random() * filteredExtra.length);
         dailyMenus.push({
-          name: allMenus[randomIndex].name,
+          name: filteredExtra[randomIndex].name,
           score: 0.5,
           source: ["extra"]
         });
-        allMenus.splice(randomIndex, 1);
+        filteredExtra.splice(randomIndex, 1);
       }
     }
 
-    // ✅ บันทึกเมนูที่ใช้แล้ว
     dailyMenus.forEach(m => usedMenus.add(m.name));
 
-    // ✅ เพิ่มลง weeklyResults
     weeklyResults.push({
       day: `วัน${days[i]}`,
       meals: [

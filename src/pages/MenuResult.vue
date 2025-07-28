@@ -1,4 +1,4 @@
-<template>
+<template> 
   <div class="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 py-12 px-6 max-w-5xl mx-auto">
     <h1 class="text-3xl font-bold text-center text-indigo-600 mb-8">📅 เมนูแนะนำรายสัปดาห์</h1>
 
@@ -90,24 +90,32 @@
 import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { db } from '@/firebase/firebaseConfig'
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
+import { collection, addDoc, serverTimestamp, query, where, getDocs } from 'firebase/firestore'
 import { getAuth } from 'firebase/auth'
 
 const route = useRoute()
-
-// ✅ ข้อมูล 7 วัน
 const weeklyResults = ref([])
 const likedMenus = ref([])
 
-// ✅ Modal รีวิว
 const isReviewModalOpen = ref(false)
 const currentMenuName = ref('')
 const reviewRating = ref(5)
 const reviewComment = ref('')
 
-onMounted(() => {
+onMounted(async () => {
   if (route.query.result) {
     weeklyResults.value = JSON.parse(route.query.result)
+  }
+
+  const auth = getAuth()
+  const user = auth.currentUser
+  if (user) {
+    const q = query(
+      collection(db, 'liked_dishes_logs'),
+      where('email', '==', user.email)
+    )
+    const snapshot = await getDocs(q)
+    likedMenus.value = snapshot.docs.map(doc => doc.data().menuName)
   }
 })
 
@@ -119,7 +127,8 @@ const toggleLike = async (menuName) => {
     return
   }
 
-  if (likedMenus.value.includes(menuName)) {
+  const isLiked = likedMenus.value.includes(menuName)
+  if (isLiked) {
     likedMenus.value = likedMenus.value.filter(m => m !== menuName)
     alert(`ยกเลิกถูกใจเมนู: ${menuName}`)
   } else {
@@ -128,10 +137,9 @@ const toggleLike = async (menuName) => {
   }
 
   try {
-    await addDoc(collection(db, 'likes'), {
+    await addDoc(collection(db, 'liked_dishes_logs'), {
       email: user.email,
       menuName,
-      liked: likedMenus.value.includes(menuName),
       timestamp: serverTimestamp()
     })
   } catch (err) {
