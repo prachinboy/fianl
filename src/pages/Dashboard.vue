@@ -22,6 +22,7 @@ const avatarUrl = ref('')
 const likedDishes = ref([])
 const reviews = ref([])
 const isAdmin = ref(false)
+const userRole = ref('ผู้ใช้งานระบบ')  // ✅ เพิ่มตัวแปรสถานะ
 const loading = ref(true)
 
 onAuthStateChanged(getAuth(), async (u) => {
@@ -32,20 +33,23 @@ onAuthStateChanged(getAuth(), async (u) => {
 
   user.value = u
 
-  // ✅ เปลี่ยนมาใช้ uid เพื่อความเสถียร
+  // ✅ ใช้ uid เพื่อความเสถียร
   const userRef = doc(db, 'users', u.uid)
   const userSnap = await getDoc(userRef)
   if (userSnap.exists()) {
     const data = userSnap.data()
     displayName.value = data.displayName || ''
     avatarUrl.value = data.avatarUrl || ''
-    isAdmin.value = data.isAdmin === true || data.role === 'admin'
 
+    // ✅ ตรวจสอบ role / isAdmin และอัปเดตสถานะอัตโนมัติ
+    const adminCheck = data.isAdmin === true || data.role === 'admin'
+    isAdmin.value = adminCheck
+    userRole.value = adminCheck ? 'ผู้ดูแลระบบ' : 'ผู้ใช้งานระบบ'
   }
 
   const likedQuery = query(
     collection(db, 'liked_dishes_logs'),
-    where('email', '==', u.email) // ❗ ยังใช้ email สำหรับ query logs ได้อยู่
+    where('email', '==', u.email)
   )
   const unsubLikes = onSnapshot(likedQuery, (snapshot) => {
     likedDishes.value = snapshot.docs.map((doc) => ({
@@ -93,8 +97,6 @@ const logout = () => {
 }
 </script>
 
-
-
 <template>
   <div class="min-h-screen bg-gradient-to-tr from-indigo-100 via-white to-pink-100 flex">
     <aside class="hidden md:flex flex-col w-64 bg-gradient-to-b from-indigo-600 to-indigo-500 text-white py-10 px-6 shadow-lg justify-between">
@@ -103,7 +105,7 @@ const logout = () => {
           <img :src="avatarUrl" class="w-20 h-20 rounded-full border-4 border-white shadow-md object-cover" alt="Avatar" />
           <div class="text-center">
             <h2 class="text-lg font-semibold">{{ displayName || user?.displayName }}</h2>
-            <p class="text-xs opacity-80">👤 ผู้ใช้งานระบบ</p>
+            <p class="text-xs opacity-80">👤 {{ userRole }}</p>
           </div>
         </div>
 
@@ -123,7 +125,7 @@ const logout = () => {
     </aside>
 
     <main class="flex-1 py-12 px-6 max-w-6xl mx-auto">
-      <div class="text-3xl font-extrabold text-orange-500 mb-6 text-center">FoodReco</div>
+      <div class="text-3xl font-extrabold text-orange-500 mb-6 text-center">food is everything</div>
       <div class="bg-white rounded-3xl shadow-xl p-8">
         <div class="mb-6">
           <h1 class="text-2xl font-bold text-gray-800">ยินดีต้อนรับ {{ displayName || user?.displayName }}</h1>
