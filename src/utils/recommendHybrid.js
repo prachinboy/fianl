@@ -89,7 +89,7 @@ export function filterRecipesByInput(userInput, recipes) {
     });
 }
 
-// ✅ ฟังก์ชันแนะนำเมนู Hybrid (กรองเข้มงวด 100%)
+// ✅ ฟังก์ชันแนะนำเมนู Hybrid (เพิ่ม Fallback)
 export async function recommendHybrid(userInput, liked_dishes = []) {
   const safeInput = {
     meats: Array.isArray(userInput.meats) ? userInput.meats : [],
@@ -98,6 +98,7 @@ export async function recommendHybrid(userInput, liked_dishes = []) {
     favorite: userInput.favorite || ""
   };
 
+  // ✅ ดึง liked_dishes จาก Firestore ถ้าไม่ส่งมา
   if (!liked_dishes.length) {
     const auth = getAuth();
     const user = auth.currentUser;
@@ -119,9 +120,11 @@ export async function recommendHybrid(userInput, liked_dishes = []) {
 
   console.log("✅ Filtered Recipes:", strictFiltered.map(r => r.name));
 
-  const v3Results = (recommendV3(safeInput) || [])
+  // ✅ Content-Based
+  let v3Results = (recommendV3(safeInput) || [])
     .filter(r => r && r.name && strictFiltered.some(f => f.name === r.name));
 
+  // ✅ Favorite
   if (safeInput.favorite) {
     const strictFav = strictFiltered.find(r =>
       (r.name || "").includes(safeInput.favorite)
@@ -131,18 +134,19 @@ export async function recommendHybrid(userInput, liked_dishes = []) {
     }
   }
 
+  // ✅ Apriori
   let aprioriResults = [];
   try {
     const logs = await fetchLogs();
-    const transactions = transformToTransactions(logs);
-    aprioriResults = (suggestFromApriori(
-      liked_dishes,
-      runApriori(transactions, 0.1, 0.3)
-    ) || []).filter(d => strictFiltered.some(f => f.name === d));
+    const transactions = transformToTransactions(logs) || [];
+    const rules = await runApriori(transactions, 0.1, 0.3) || [];
+    aprioriResults = (suggestFromApriori(liked_dishes, rules) || [])
+      .filter(d => strictFiltered.some(f => f.name === d));
   } catch (err) {
     console.error("❌ Apriori Error:", err);
   }
 
+  // ✅ รวมผลลัพธ์
   const allResults = {};
   function addOrUpdate(dish, score, source) {
     if (!dish) return;
@@ -162,6 +166,7 @@ export async function recommendHybrid(userInput, liked_dishes = []) {
     .map(([name, { score, source }]) => ({ name, score, source }))
     .sort((a, b) => b.score - a.score);
 
+  // ✅ Fallback 1: เพิ่มเมนูจาก strictFiltered
   if (finalResults.length < 7) {
     const existingNames = finalResults.map(r => r.name);
     const additional = strictFiltered
@@ -175,10 +180,23 @@ export async function recommendHybrid(userInput, liked_dishes = []) {
     finalResults = [...finalResults, ...additional];
   }
 
+  // ✅ Fallback 2: ถ้ายังไม่มีเลย → Random จาก allRecipes
+  if (finalResults.length === 0) {
+    console.warn("⚠️ No strict match → fallback random menus");
+    finalResults = allRecipes
+      .sort(() => Math.random() - 0.5)
+      .slice(0, 7)
+      .map(r => ({
+        name: r.name,
+        score: 0.1,
+        source: ["fallback"]
+      }));
+  }
+
   return finalResults.slice(0, 7);
 }
 
-// ✅ ฟังก์ชันแนะนำรายสัปดาห์ 7 วัน × 3 มื้อ (กรองเข้มงวดทุกจุด)
+// ✅ ฟังก์ชันแนะนำรายสัปดาห์ 7 วัน × 3 มื้อ (มี Fallback)
 export async function recommendWeekly7Days(userInput, liked_dishes = []) {
   const days = ["จันทร์", "อังคาร", "พุธ", "พฤหัสบดี", "ศุกร์", "เสาร์", "อาทิตย์"];
   const weeklyResults = [];
@@ -189,8 +207,11 @@ export async function recommendWeekly7Days(userInput, liked_dishes = []) {
 
   for (let i = 0; i < 7; i++) {
     let dailyMenus = await recommendHybrid(userInput, liked_dishes);
+
+    // ✅ กันเมนูซ้ำ
     dailyMenus = dailyMenus.filter(m => !usedMenus.has(m.name));
 
+    // ✅ Fallback 1: เติมเมนูจาก strictFiltered ให้ครบ 3 มื้อ
     if (dailyMenus.length < 3) {
       const filteredExtra = strictFiltered.filter(r => !usedMenus.has(r.name));
       while (dailyMenus.length < 3 && filteredExtra.length > 0) {
@@ -200,7 +221,23 @@ export async function recommendWeekly7Days(userInput, liked_dishes = []) {
           score: 0.5,
           source: ["extra"]
         });
+        usedMenus.add(filteredExtra[randomIndex].name);
         filteredExtra.splice(randomIndex, 1);
+      }
+    }
+
+    // ✅ Fallback 2: ถ้ายังไม่ครบ 3 มื้อ → Random จาก allRecipes
+    if (dailyMenus.length < 3) {
+      const fallbackExtra = allRecipes.filter(r => !usedMenus.has(r.name));
+      while (dailyMenus.length < 3 && fallbackExtra.length > 0) {
+        const randomIndex = Math.floor(Math.random() * fallbackExtra.length);
+        dailyMenus.push({
+          name: fallbackExtra[randomIndex].name,
+          score: 0.1,
+          source: ["fallback"]
+        });
+        usedMenus.add(fallbackExtra[randomIndex].name);
+        fallbackExtra.splice(randomIndex, 1);
       }
     }
 
