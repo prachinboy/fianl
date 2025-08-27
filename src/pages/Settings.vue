@@ -13,17 +13,13 @@
 
       <!-- ✅ เปลี่ยนรหัสผ่าน -->
       <div class="mb-6">
-        <label class="block text-gray-700 font-semibold mb-1">🔒 เปลี่ยนรหัสผ่าน:</label>
-        <input
-          v-model="newPassword"
-          type="password"
-          placeholder="กรอกรหัสผ่านใหม่ (อย่างน้อย 6 ตัวอักษร)"
-          class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300"
-        />
-        <button
-          @click="updatePasswordHandler"
-          class="w-full mt-2 py-2.5 bg-indigo-500 hover:bg-indigo-600 text-white font-medium rounded-xl shadow transition"
-        >
+        <label class="block text-gray-700 font-semibold mb-1">🔒 รหัสผ่านเดิม:</label>
+        <input v-model="oldPassword" type="password" placeholder="กรอกรหัสผ่านเดิม" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300" />
+
+        <label class="block text-gray-700 font-semibold mt-4 mb-1">🔒 รหัสผ่านใหม่:</label>
+        <input v-model="newPassword" type="password" placeholder="กรอกรหัสผ่านใหม่ (อย่างน้อย 6 ตัวอักษร)" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300" />
+
+        <button @click="updatePasswordHandler" class="w-full mt-2 py-2.5 bg-indigo-500 hover:bg-indigo-600 text-white font-medium rounded-xl shadow transition">
           🔑 เปลี่ยนรหัสผ่าน
         </button>
         <p v-if="passwordMessage" :class="isPasswordSuccess ? 'text-green-600' : 'text-red-600'" class="mt-1">
@@ -41,16 +37,16 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { getAuth, onAuthStateChanged, updatePassword } from 'firebase/auth'
+import { getAuth, onAuthStateChanged, updatePassword, EmailAuthProvider, reauthenticateWithCredential, updateProfile } from 'firebase/auth'
 import { db } from '@/firebase/firebaseConfig'
 import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore'
-import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage'
 
 const displayName = ref('')
 const avatarUrl = ref('')
 const userEmail = ref('')
+const avatar = ref('')
 
-// ✅ เปลี่ยนรหัสผ่าน
+const oldPassword = ref('')
 const newPassword = ref('')
 const passwordMessage = ref('')
 const isPasswordSuccess = ref(false)
@@ -70,10 +66,9 @@ onMounted(() => {
   })
 })
 
-// ✅ ฟังก์ชันเปลี่ยนรหัสผ่าน
 const updatePasswordHandler = async () => {
-  if (!newPassword.value || newPassword.value.length < 6) {
-    passwordMessage.value = "❌ กรุณากรอกรหัสผ่านอย่างน้อย 6 ตัวอักษร"
+  if (!oldPassword.value || !newPassword.value || newPassword.value.length < 6) {
+    passwordMessage.value = "❌ กรุณากรอกรหัสผ่านเดิม และรหัสผ่านใหม่อย่างน้อย 6 ตัวอักษร"
     isPasswordSuccess.value = false
     return
   }
@@ -87,12 +82,47 @@ const updatePasswordHandler = async () => {
   }
 
   try {
+    const credential = EmailAuthProvider.credential(user.email, oldPassword.value)
+    await reauthenticateWithCredential(user, credential)
     await updatePassword(user, newPassword.value)
+
     passwordMessage.value = "✅ เปลี่ยนรหัสผ่านสำเร็จ!"
     isPasswordSuccess.value = true
+    oldPassword.value = ''
     newPassword.value = ''
   } catch (err) {
     console.error("❌ Error updating password:", err)
+    passwordMessage.value = "❌ เกิดข้อผิดพลาด: " + err.message
+    isPasswordSuccess.value = false
+  }
+}
+
+const saveProfile = async () => {
+  const auth = getAuth()
+  const user = auth.currentUser
+
+  if (!user) {
+    console.log("❌ กรุณาเข้าสู่ระบบก่อน")
+    return
+  }
+
+  try {
+    await updateProfile(user, {
+      displayName: displayName.value,
+      photoURL: avatar.value
+    })
+
+    await setDoc(doc(db, 'users', user.uid), {
+      displayName: displayName.value,
+      avatar: avatar.value,
+      email: userEmail.value,
+      updatedAt: serverTimestamp()
+    })
+
+    passwordMessage.value = "✅ บันทึกข้อมูลสำเร็จ!"
+    isPasswordSuccess.value = true
+  } catch (err) {
+    console.error("❌ เกิดข้อผิดพลาด:", err)
     passwordMessage.value = "❌ เกิดข้อผิดพลาด: " + err.message
     isPasswordSuccess.value = false
   }
