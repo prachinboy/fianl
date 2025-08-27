@@ -30,14 +30,7 @@
             📝 รีวิว
           </button>
         </div>
-
-        <button
-          @click="goToDetail(menu.name)"
-          class="mt-3 w-full py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
-        >
-          ดูรายละเอียดเมนู
-        </button>
-      </div>
+        </div>
     </div>
 
     <!-- ✅ Modal รีวิว -->

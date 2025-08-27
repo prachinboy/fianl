@@ -2,17 +2,7 @@
 import { useRouter } from 'vue-router'
 import { ref, onUnmounted } from 'vue'
 import { db } from '@/firebase/firebaseConfig'
-import {
-  collection,
-  doc,
-  query,
-  where,
-  orderBy,
-  limit,
-  onSnapshot,
-  deleteDoc,
-  getDoc
-} from 'firebase/firestore'
+import { collection, doc, query, where, orderBy, limit, onSnapshot, deleteDoc, getDoc } from 'firebase/firestore'
 import { getAuth, onAuthStateChanged } from 'firebase/auth'
 
 const router = useRouter()
@@ -22,7 +12,7 @@ const avatarUrl = ref('')
 const likedDishes = ref([])
 const reviews = ref([])
 const isAdmin = ref(false)
-const userRole = ref('ผู้ใช้งานระบบ')  // ✅ เพิ่มตัวแปรสถานะ
+const userRole = ref('ผู้ใช้งานระบบ') // ✅ เพิ่มตัวแปรสถานะ
 const loading = ref(true)
 
 onAuthStateChanged(getAuth(), async (u) => {
@@ -31,16 +21,14 @@ onAuthStateChanged(getAuth(), async (u) => {
     return
   }
 
-  user.value = u
-
-  // ✅ ใช้ uid เพื่อความเสถียร
+  user.value = u // ✅ ใช้ uid เพื่อความเสถียร
   const userRef = doc(db, 'users', u.uid)
   const userSnap = await getDoc(userRef)
+
   if (userSnap.exists()) {
     const data = userSnap.data()
     displayName.value = data.displayName || ''
-    avatarUrl.value = data.avatarUrl || ''
-
+    avatarUrl.value = data.avatar || ''
     // ✅ ตรวจสอบ role / isAdmin และอัปเดตสถานะอัตโนมัติ
     const adminCheck = data.isAdmin === true || data.role === 'admin'
     isAdmin.value = adminCheck
@@ -51,6 +39,7 @@ onAuthStateChanged(getAuth(), async (u) => {
     collection(db, 'liked_dishes_logs'),
     where('email', '==', u.email)
   )
+
   const unsubLikes = onSnapshot(likedQuery, (snapshot) => {
     likedDishes.value = snapshot.docs.map((doc) => ({
       id: doc.id,
@@ -64,6 +53,7 @@ onAuthStateChanged(getAuth(), async (u) => {
     orderBy('timestamp', 'desc'),
     limit(5)
   )
+
   const unsubReviews = onSnapshot(reviewQuery, (snapshot) => {
     reviews.value = snapshot.docs.map((doc) => {
       const d = doc.data()
@@ -108,17 +98,12 @@ const logout = () => {
             <p class="text-xs opacity-80">👤 {{ userRole }}</p>
           </div>
         </div>
-
         <div class="mt-10 space-y-3 text-sm">
           <button @click="goToSettings" class="w-full text-left px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded">⚙️ ตั้งค่าโปรไฟล์</button>
           <button @click="goToMenu" class="w-full text-left px-3 py-2 bg-pink-600 hover:bg-pink-700 rounded">📅 เลือกการแนะนำ</button>
           <button @click="goToHistory" class="w-full text-left px-3 py-2 bg-yellow-500 hover:bg-yellow-600 rounded">🕓 ประวัติการแนะนำ</button>
-
           <!-- ✅ ปุ่มแอดมิน -->
-          <button v-if="!loading && isAdmin" @click="goToAdmin" class="w-full text-left px-3 py-2 bg-purple-500 hover:bg-purple-600 rounded">
-            🛠 จัดการระบบ
-          </button>
-
+          <button v-if="!loading && isAdmin" @click="goToAdmin" class="w-full text-left px-3 py-2 bg-purple-500 hover:bg-purple-600 rounded"> 🛠 จัดการระบบ </button>
           <button @click="logout" class="w-full text-left px-3 py-2 bg-red-500 hover:bg-red-600 rounded text-sm">🚪 ออกจากระบบ</button>
         </div>
       </div>
@@ -131,7 +116,6 @@ const logout = () => {
           <h1 class="text-2xl font-bold text-gray-800">ยินดีต้อนรับ {{ displayName || user?.displayName }}</h1>
           <p class="text-sm text-gray-500">📧 {{ user?.email }}</p>
         </div>
-
         <div class="grid sm:grid-cols-2 gap-6">
           <!-- ❤️ เมนูที่คุณเคยกดถูกใจ -->
           <div class="bg-gradient-to-br from-pink-100 to-indigo-100 p-6 rounded-xl shadow">

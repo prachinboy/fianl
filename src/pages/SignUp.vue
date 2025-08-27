@@ -19,7 +19,7 @@
         <h2 class="text-2xl font-bold text-indigo-800 mb-1">ยินดีต้อนรับ!</h2>
         <p class="text-sm text-gray-500 mb-6">สมัครสมาชิกเพื่อเริ่มต้นใช้งาน</p>
 
-        <form @submit.prevent="handleSubmit" class="space-y-5">
+        <form @submit.prevent="register" class="space-y-5">
           <div>
             <label class="block text-sm font-semibold text-gray-700 mb-1">ชื่อผู้ใช้</label>
             <input v-model="username" type="text" placeholder="กรอกชื่อผู้ใช้" required class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-300" />
@@ -48,44 +48,37 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { getAuth, createUserWithEmailAndPassword } from 'firebase/auth'
-import { db } from '@/firebase/firebaseConfig'
 import { doc, setDoc } from 'firebase/firestore'
+import { db } from '@/firebase/firebaseConfig'
+
+const router = useRouter()
 
 const username = ref('')
 const email = ref('')
 const password = ref('')
-const router = useRouter()
 
-const handleSubmit = async () => {
+const getRandomAvatar = () => {
+  const randomNumber = Math.floor(Math.random() * 10) + 1
+  return `/profile-avatars/avatar${randomNumber}.png`
+}
+
+const register = async () => {
+  const auth = getAuth()
   try {
-    const auth = getAuth()
     const userCredential = await createUserWithEmailAndPassword(auth, email.value, password.value)
     const user = userCredential.user
+    const avatarUrl = getRandomAvatar()
 
-    // ✅ บันทึกข้อมูลผู้ใช้ลง Firestore
     await setDoc(doc(db, 'users', user.uid), {
-      uid: user.uid,
-      email: user.email,
-      username: username.value,
-      liked_dishes: [],
-      reviews: []
+      name: username.value,
+      email: email.value,
+      avatar: avatarUrl
     })
 
-    // ✅ บันทึกข้อมูลลง localStorage เพื่อให้ Dashboard ใช้งานได้ทันที
-    localStorage.setItem('user', JSON.stringify({
-      uid: user.uid,
-      email: user.email,
-      displayName: username.value
-    }))
-
-    alert('✅ สมัครสมาชิกสำเร็จ และข้อมูลถูกบันทึกแล้ว')
-    router.push('/dashboard') // ไป Dashboard ทันที
-  } catch (error) {
-    if (error.code === 'auth/email-already-in-use') {
-      alert('❌ อีเมลนี้ถูกใช้แล้ว โปรดเข้าสู่ระบบหรือใช้อีเมลอื่น')
-    } else {
-      alert('❌ สมัครไม่สำเร็จ: ' + error.message)
-    }
+    alert('✅ สมัครเรียบร้อย')
+    router.push('/dashboard')
+  } catch (err) {
+    alert('❌ เกิดข้อผิดพลาด: ' + err.message)
   }
 }
 </script>

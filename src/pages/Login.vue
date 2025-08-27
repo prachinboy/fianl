@@ -56,15 +56,24 @@ const loginUser = async () => {
     const userCredential = await signInWithEmailAndPassword(auth, email.value, password.value)
     const user = userCredential.user
 
-    // ✅ ตรวจสอบสถานะ active/inactive จาก Firestore
-    const snap = await getDoc(doc(db, 'users', user.uid))
-    if (snap.exists()) {
-      const data = snap.data()
-      if (data.status === 'inactive') {
-        alert('❌ บัญชีนี้ถูกระงับการใช้งาน กรุณาติดต่อผู้ดูแลระบบ')
-        router.push('/account-suspended')
-        return
-      }
+    // 🔍 ดึงข้อมูลจาก Firestore
+    const userRef = doc(db, 'users', user.uid)
+    const snap = await getDoc(userRef)
+
+    // ❌ กรณี: ไม่พบข้อมูลใน Firestore (อาจถูกลบโดยแอดมิน)
+    if (!snap.exists()) {
+      alert('❌ บัญชีนี้ถูกลบออกจากระบบแล้ว')
+      await auth.signOut()
+      return
+    }
+
+    const data = snap.data()
+
+    // ❌ กรณี: ถูกระงับการใช้งาน
+    if (data.status === 'inactive' || data.active === false) {
+      alert('❌ บัญชีนี้ถูกระงับการใช้งาน กรุณาติดต่อผู้ดูแลระบบ')
+      await auth.signOut()
+      return
     }
 
     // ✅ เก็บข้อมูล user ลง localStorage
@@ -76,6 +85,7 @@ const loginUser = async () => {
 
     alert('✅ เข้าสู่ระบบสำเร็จ')
     router.push('/dashboard')
+
   } catch (error) {
     alert('❌ เข้าสู่ระบบไม่สำเร็จ: ' + error.message)
   }
@@ -87,6 +97,7 @@ const goToSignup = () => {
   }
 }
 </script>
+
 
 <style scoped>
 /* ใช้ Tailwind CSS ทั้งหมด */
