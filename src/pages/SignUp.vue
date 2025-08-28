@@ -85,7 +85,7 @@ const register = async () => {
     alert('✅ สมัครเรียบร้อย')
     router.push('/dashboard')
   } catch (err) {
-    alert('❌ เกิดข้อผิดพลาด: ' + err.message)
+    alert('❌ มีemail,passwordหรือusernameซ้ำ สมัครใหม่นะ ' )
   }
 }
 </script>

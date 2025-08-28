@@ -87,7 +87,7 @@ const loginUser = async () => {
     router.push('/dashboard')
 
   } catch (error) {
-    alert('❌ เข้าสู่ระบบไม่สำเร็จ: ' + error.message)
+    alert('❌ emailหรือpasswordผิด ลองใส่ใหม่ ' )
   }
 }
 
