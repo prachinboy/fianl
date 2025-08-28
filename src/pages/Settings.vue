@@ -42,10 +42,8 @@ import { db } from '@/firebase/firebaseConfig'
 import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore'
 
 const displayName = ref('')
-const avatarUrl = ref('')
-const userEmail = ref('')
 const avatar = ref('')
-
+const userEmail = ref('')
 const oldPassword = ref('')
 const newPassword = ref('')
 const passwordMessage = ref('')
@@ -60,7 +58,7 @@ onMounted(() => {
       if (userDoc.exists()) {
         const data = userDoc.data()
         displayName.value = data.displayName || ''
-        avatarUrl.value = data.avatarUrl || ''
+        avatar.value = data.avatar || ''
       }
     }
   })

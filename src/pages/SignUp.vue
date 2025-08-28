@@ -47,19 +47,19 @@
 <script setup>
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { getAuth, createUserWithEmailAndPassword } from 'firebase/auth'
+import { getAuth, createUserWithEmailAndPassword, updateProfile } from 'firebase/auth'
 import { doc, setDoc } from 'firebase/firestore'
 import { db } from '@/firebase/firebaseConfig'
 
 const router = useRouter()
-
 const username = ref('')
 const email = ref('')
 const password = ref('')
 
+// ✅ สุ่ม avatar จาก public/profile-avatars/
 const getRandomAvatar = () => {
   const randomNumber = Math.floor(Math.random() * 10) + 1
-  return `/profile-avatars/avatar${randomNumber}.png`
+  return `profile-avatars/avatar${randomNumber}.png`
 }
 
 const register = async () => {
@@ -69,8 +69,15 @@ const register = async () => {
     const user = userCredential.user
     const avatarUrl = getRandomAvatar()
 
+    // ✅ อัปเดต Firebase Auth
+    await updateProfile(user, {
+      displayName: username.value,
+      photoURL: avatarUrl
+    })
+
+    // ✅ บันทึกลง Firestore
     await setDoc(doc(db, 'users', user.uid), {
-      name: username.value,
+      displayName: username.value,
       email: email.value,
       avatar: avatarUrl
     })
