@@ -71,7 +71,7 @@ const loginUser = async () => {
 
     // ❌ กรณี: ถูกระงับการใช้งาน
     if (data.status === 'inactive' || data.active === false) {
-      alert('❌ บัญชีนี้ถูกระงับการใช้งาน กรุณาติดต่อผู้ดูแลระบบ')
+      alert('❌ บัญชีนี้ถูกระงับการใช้งาน กรุณาติดต่อผู้ดูแลระบบ @paperanya192168@gmail.com')
       await auth.signOut()
       return
     }
