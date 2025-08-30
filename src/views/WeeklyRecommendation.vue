@@ -141,7 +141,7 @@ const handleSubmit = async () => {
     const existingSnap = await getDoc(userRef)
     const currentLiked = existingSnap.exists() ? existingSnap.data().liked_dishes || [] : []
     const updatedLiked = Array.from(new Set([...currentLiked, ...allMenus]))
-    await updateDoc(userRef, { liked_dishes: updatedLiked })
+    
 
     await addDoc(collection(db, 'recommend_logs'), {
       email: user.email,

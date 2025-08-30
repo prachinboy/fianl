@@ -91,7 +91,6 @@ const favoriteMethods = ref('')
 
 const favoriteMeat = ref('')
 const favoriteVegetables = ref('')
-const like = ref([]) // ✅ array ของ { menuname, liked }
 const role = ref('')
 const isAdmin = ref(false)
 
@@ -109,7 +108,6 @@ onMounted(() => {
         favoriteVegetables.value = data.favoriteVegetables || ''
         favoriteSpices.value = data.favoriteSpices || ''       // ✅ เพิ่มตรงนี้
         favoriteMethods.value = data.favoriteMethods || '' 
-        like.value = data.like || []
         role.value = data.role || ''
         isAdmin.value = data.isAdmin || false
       }
@@ -171,7 +169,6 @@ const saveProfile = async () => {
       favoriteVegetables: favoriteVegetables.value,
       favoriteSpices: favoriteSpices.value,       // ✅ เพิ่มตรงนี้
       favoriteMethods: favoriteMethods.value,
-      like: like.value,
       role: role.value,
       isAdmin: isAdmin.value,
       updatedAt: serverTimestamp()
