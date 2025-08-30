@@ -4,13 +4,13 @@ import { db } from '@/firebase/firebaseConfig'
 import { collection, query, where, orderBy, getDocs, doc, getDoc } from 'firebase/firestore'
 import { getAuth } from 'firebase/auth'
 
-const user = JSON.parse(localStorage.getItem('user') || 'null')
 const recommendations = ref([])
 const loading = ref(true)
-const recipes = ref([])
-const userDisplayName = ref('') // ✅ เพิ่มตัวแปรชื่อผู้ใช้
+const userDisplayName = ref('')
 
-// ✅ โหลดชื่อผู้ใช้จาก Firestore
+const auth = getAuth()
+const user = auth.currentUser
+
 const fetchUserDisplayName = async () => {
   if (!user?.uid) return
   try {
@@ -25,13 +25,8 @@ const fetchUserDisplayName = async () => {
   }
 }
 
-// ✅ โหลด recipes ทั้งหมดเพื่อใช้จับคู่ ingredients
-const fetchRecipes = async () => {
-  const snapshot = await getDocs(collection(db, 'recipes'))
-  recipes.value = snapshot.docs.map(doc => doc.data())
-}
-
-const fetchHistory = async () => {
+// ✅ โหลดจาก recommend_logs แล้ว flatten resultData[].meals[]
+const fetchRecommendationLogs = async () => {
   try {
     const q = query(
       collection(db, 'recommend_logs'),
@@ -43,23 +38,30 @@ const fetchHistory = async () => {
     const result = []
     snapshot.forEach(docSnap => {
       const data = docSnap.data()
-      const recs = data.resultData || []
+      const days = data.resultData || []
 
-      recs.forEach(item => {
-        const found = recipes.value.find(r => r.name === item.name)
-        result.push({
-          ...item,
-          ingredients: found ? found.ingredients : [],
-          createdAt: data.timestamp?.seconds
-            ? new Date(data.timestamp.seconds * 1000)
-            : new Date()
+      days.forEach(dayEntry => {
+        const day = dayEntry.day || 'ไม่ทราบวัน'
+        const meals = dayEntry.meals || []
+
+        meals.forEach(meal => {
+          result.push({
+            name: meal.name,
+            score: meal.score,
+            time: meal.time,
+            day,
+            createdAt: data.timestamp?.seconds
+              ? new Date(data.timestamp.seconds * 1000)
+              : new Date(),
+            type: data.type || 'unknown'
+          })
         })
       })
     })
 
     recommendations.value = result
   } catch (e) {
-    console.error('❌ Error loading history:', e)
+    console.error('❌ Error loading recommend_logs:', e)
   } finally {
     loading.value = false
   }
@@ -68,8 +70,7 @@ const fetchHistory = async () => {
 onMounted(async () => {
   if (user?.email) {
     await fetchUserDisplayName()
-    await fetchRecipes()
-    await fetchHistory()
+    await fetchRecommendationLogs()
   }
 })
 
@@ -97,14 +98,29 @@ const formatDate = (date) => {
         :key="i"
         class="bg-white p-4 rounded-xl shadow hover:shadow-md transition border border-indigo-200"
       >
-        <h2 class="text-lg font-bold text-indigo-600 mb-1">🍽️ {{ rec.name }}</h2>
+        <h2 class="text-lg font-bold text-indigo-600 mb-1">
+          🍽️ {{ rec.day }} - {{ rec.time }}: {{ rec.name }}
+        </h2>
         <p class="text-sm text-gray-600">
-          <strong>วัตถุดิบ:</strong> {{ rec.ingredients?.join(', ') || '-' }}
+          <strong>คะแนนแนะนำ:</strong> {{ rec.score }}
         </p>
         <p class="text-sm text-gray-400 mt-1">
           📅 วันที่แนะนำ: {{ formatDate(rec.createdAt) }}
         </p>
+        <p class="text-sm text-gray-500 mt-1">
+  🔖 ประเภท: {{
+    rec.type === 'weekly' ? 'รายสัปดาห์' :
+    rec.type === 'daily' ? 'รายวัน' :
+    rec.type === 'random' ? 'สุ่ม' : 'อื่น ๆ'
+  }}
+</p>
+
+
       </div>
     </div>
   </div>
 </template>
+
+<style scoped>
+/* ใช้ Tailwind CSS ทั้งหมด */
+</style>

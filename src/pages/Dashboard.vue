@@ -35,16 +35,19 @@ onAuthStateChanged(getAuth(), async (u) => {
   }
 
   const likedQuery = query(
-    collection(db, 'liked_dishes_logs'),
-    where('email', '==', u.email)
-  )
+  collection(db, 'likes'), // 🔄 เปลี่ยนจาก 'liked_dishes_logs' เป็น 'likes'
+  where('email', '==', u.email),
+  where('liked', '==', true) // ✅ ดึงเฉพาะที่กดหัวใจ
+)
 
-  const unsubLikes = onSnapshot(likedQuery, (snapshot) => {
-    likedDishes.value = snapshot.docs.map((doc) => ({
-      id: doc.id,
-      name: doc.data().menuName
-    }))
-  })
+
+const unsubLikes = onSnapshot(likedQuery, (snapshot) => {
+  likedDishes.value = snapshot.docs.map((doc) => ({
+    id: doc.id,
+    name: doc.data().menuName
+  }))
+})
+
 
   const reviewQuery = query(
     collection(db, 'reviews'),
@@ -77,7 +80,7 @@ const avatarSrc = computed(() => {
 
 const deleteLikedDish = async (id) => {
   try {
-    await deleteDoc(doc(db, 'liked_dishes_logs', id))
+    await deleteDoc(doc(db, 'likes', id))
   } catch (err) {
     alert('เกิดข้อผิดพลาดในการลบเมนู')
   }

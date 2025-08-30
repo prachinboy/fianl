@@ -11,6 +11,44 @@
         <input v-model="displayName" type="text" placeholder="กรอกชื่อของคุณ..." class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300" />
       </div>
 
+      <!-- วัตถุดิบที่ชอบ -->
+      <div class="mb-4">
+        <label class="block text-gray-700 font-semibold mb-1">เนื้อสัตว์ที่ชอบ:</label>
+        <input v-model="favoriteMeat" type="text" placeholder="เช่น หมู, ไก่, เนื้อ..." class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300" />
+      </div>
+      <div class="mb-4">
+  <label class="block text-gray-700 font-semibold mb-1">เครื่องเทศที่ชอบ:</label>
+  <input v-model="favoriteSpices" type="text" placeholder="เช่น พริกไทย, ยี่หร่า, ข่า..." class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300" />
+</div>
+
+<!-- วิธีปรุงที่ชอบ -->
+<div class="mb-4">
+  <label class="block text-gray-700 font-semibold mb-1">วิธีปรุงที่ชอบ:</label>
+  <input v-model="favoriteMethods" type="text" placeholder="เช่น ผัด, ต้ม, ย่าง..." class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300" />
+</div>
+
+      <div class="mb-4">
+        <label class="block text-gray-700 font-semibold mb-1">ผักที่ชอบ:</label>
+        <input v-model="favoriteVegetables" type="text" placeholder="เช่น ผักบุ้ง, คะน้า, แครอท..." class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300" />
+      </div>
+      <div class="mb-6">
+  <label class="block text-gray-700 font-semibold mb-2">เลือกรูปโปรไฟล์:</label>
+  <div class="grid grid-cols-5 gap-4">
+    <img
+      v-for="n in 10"
+      :key="n"
+      :src="`/profile-avatars/avatar${n}.png`"
+      :alt="`avatar${n}`"
+      class="w-16 h-16 rounded-full cursor-pointer border-2 transition hover:scale-105"
+      :class="avatar === `profile-avatars/avatar${n}.png` ? 'border-indigo-500 ring-2 ring-indigo-300' : 'border-gray-300'"
+      @click="avatar = `profile-avatars/avatar${n}.png`"
+    />
+  </div>
+  <div class="mt-4 text-center">
+    <img :src="`/${avatar}`" alt="preview" class="w-24 h-24 rounded-full border-4 border-indigo-300 mx-auto" />
+  </div>
+</div>
+
       <!-- ✅ เปลี่ยนรหัสผ่าน -->
       <div class="mb-6">
         <label class="block text-gray-700 font-semibold mb-1">🔒 รหัสผ่านเดิม:</label>
@@ -48,6 +86,14 @@ const oldPassword = ref('')
 const newPassword = ref('')
 const passwordMessage = ref('')
 const isPasswordSuccess = ref(false)
+const favoriteSpices = ref('')
+const favoriteMethods = ref('')
+
+const favoriteMeat = ref('')
+const favoriteVegetables = ref('')
+const like = ref([]) // ✅ array ของ { menuname, liked }
+const role = ref('')
+const isAdmin = ref(false)
 
 onMounted(() => {
   const auth = getAuth()
@@ -59,6 +105,13 @@ onMounted(() => {
         const data = userDoc.data()
         displayName.value = data.displayName || ''
         avatar.value = data.avatar || ''
+        favoriteMeat.value = data.favoriteMeat || ''
+        favoriteVegetables.value = data.favoriteVegetables || ''
+        favoriteSpices.value = data.favoriteSpices || ''       // ✅ เพิ่มตรงนี้
+        favoriteMethods.value = data.favoriteMethods || '' 
+        like.value = data.like || []
+        role.value = data.role || ''
+        isAdmin.value = data.isAdmin || false
       }
     }
   })
@@ -114,8 +167,15 @@ const saveProfile = async () => {
       displayName: displayName.value,
       avatar: avatar.value,
       email: userEmail.value,
+      favoriteMeat: favoriteMeat.value,
+      favoriteVegetables: favoriteVegetables.value,
+      favoriteSpices: favoriteSpices.value,       // ✅ เพิ่มตรงนี้
+      favoriteMethods: favoriteMethods.value,
+      like: like.value,
+      role: role.value,
+      isAdmin: isAdmin.value,
       updatedAt: serverTimestamp()
-    })
+    }, { merge: true })
 
     passwordMessage.value = "✅ บันทึกข้อมูลสำเร็จ!"
     isPasswordSuccess.value = true

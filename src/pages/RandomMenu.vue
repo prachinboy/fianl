@@ -61,17 +61,28 @@ const logRandomMenu = async () => {
 
   try {
     await addDoc(collection(db, "recommend_logs"), {
-      userId: user ? user.uid : "guest",
-      action: "random_menu",
-      menuName: randomMenuItem.value?.name || "-",
-      timestamp: serverTimestamp(),
-       type: 'randommenu',
+      email: user?.email || "guest",
+      resultData: [
+        {
+          day: "เมนูสุ่ม",
+          meals: [
+            {
+              name: randomMenuItem.value?.name || "-",
+              score: randomMenuItem.value?.score || 0,
+              time: "ไม่ระบุ"
+            }
+          ]
+        }
+      ],
+      type: "random",
+      timestamp: serverTimestamp()
     });
     console.log("✅ บันทึกการสุ่มเมนูสำเร็จ");
   } catch (error) {
     console.error("❌ บันทึกการสุ่มเมนูล้มเหลว:", error.message);
   }
 };
+
 
 onMounted(fetchMenus);
 </script>

@@ -30,7 +30,7 @@
             📝 รีวิว
           </button>
         </div>
-        </div>
+      </div>
     </div>
 
     <!-- ✅ Modal รีวิว -->
@@ -84,11 +84,34 @@ const currentMenuName = ref('')
 const reviewRating = ref(5)
 const reviewComment = ref('')
 
-onMounted(() => {
+onMounted(async () => {
   if (route.query.result) {
     menus.value = JSON.parse(route.query.result)
+
+    const auth = getAuth()
+    const user = auth.currentUser
+    if (user && menus.value.length > 0) {
+      const resultData = [
+        {
+          day: 'เมนูรายวัน',
+          meals: menus.value.map((menu, index) => ({
+            name: menu.name,
+            score: menu.score,
+            time: mealTime[index] || 'ไม่ระบุ'
+          }))
+        }
+      ]
+
+      await addDoc(collection(db, 'recommend_logs'), {
+        email: user.email,
+        resultData,
+        type: 'daily',
+        timestamp: serverTimestamp()
+      })
+    }
   }
 })
+
 
 const toggleLike = async (menuName) => {
   const auth = getAuth()

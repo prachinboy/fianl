@@ -31,7 +31,7 @@
     </div>
 
     <div class="selection-box">
-      <label>เลือกเครื่องเทศ/สมุนไพรไทยที่ชอบ</label>
+      <label>เลือกเครื่องเทศ</label>
       <multiselect
         v-model="selectedSpices"
         :options="combinedSpices"
@@ -40,12 +40,12 @@
         track-by="name"
         class="custom-select"
         :close-on-select="false"
-        placeholder="เครื่องปรุง"
+        placeholder="เครื่องเทศ"
       />
     </div>
 
     <div class="selection-box">
-      <label>เลือกประเภทเมนูอาหารที่ชอบ</label>
+      <label>เลือกวิธีปรุง</label>
       <multiselect
         v-model="selectedTypes"
         :options="typeOptions"
@@ -54,13 +54,8 @@
         track-by="name"
         class="custom-select"
         :close-on-select="false"
-        placeholder="เลือกประเภทอาหาร"
+        placeholder="เลือกวิธีปรุง"
       />
-    </div>
-
-    <div class="input-box">
-      <label>กรอกชื่อเมนูที่ชอบ</label>
-      <input v-model="favoriteDish" type="text" placeholder="กรอกชื่อเมนูที่ชอบ" />
     </div>
 
     <button @click="handleSubmit">ตกลง</button>

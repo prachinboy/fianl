@@ -105,14 +105,39 @@ const reviewComment = ref('')
 onMounted(async () => {
   if (route.query.result) {
     weeklyResults.value = JSON.parse(route.query.result)
+
+    const auth = getAuth()
+    const user = auth.currentUser
+    if (user && weeklyResults.value.length > 0) {
+      const resultData = []
+      for (const day of weeklyResults.value) {
+        for (const meal of day.meals) {
+          resultData.push({
+            name: meal.name || 'ไม่ทราบชื่อเมนู',
+            score: meal.score,
+            type: 'weekly',
+            day: day.day,
+            time: meal.time
+          })
+        }
+      }
+
+      // ✅ เปลี่ยนจาก menu_logs → recommend_logs
+      await addDoc(collection(db, 'recommend_logs'), {
+        email: user.email,
+        resultData,
+        timestamp: serverTimestamp()
+      })
+    }
   }
 
   const auth = getAuth()
   const user = auth.currentUser
   if (user) {
     const q = query(
-      collection(db, 'liked_dishes_logs'),
-      where('email', '==', user.email)
+      collection(db, 'likes'),
+      where('email', '==', user.email),
+      orderBy('timestamp', 'desc')
     )
     const snapshot = await getDocs(q)
     likedMenus.value = snapshot.docs.map(doc => doc.data().menuName)
@@ -137,9 +162,11 @@ const toggleLike = async (menuName) => {
   }
 
   try {
-    await addDoc(collection(db, 'liked_dishes_logs'), {
+    await addDoc(collection(db, 'likes'), {
       email: user.email,
       menuName,
+      liked: !isLiked,
+      type: 'weekly',
       timestamp: serverTimestamp()
     })
   } catch (err) {
@@ -182,6 +209,8 @@ const submitReview = async () => {
   }
 }
 </script>
+
+
 
 <style scoped>
 /* ใช้ Tailwind CSS */

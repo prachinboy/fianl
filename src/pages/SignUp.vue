@@ -56,38 +56,34 @@ const username = ref('')
 const email = ref('')
 const password = ref('')
 
-// ✅ สุ่ม avatar จาก public/profile-avatars/
-const getRandomAvatar = () => {
-  const randomNumber = Math.floor(Math.random() * 10) + 1
-  return `profile-avatars/avatar${randomNumber}.png`
-}
 
 const register = async () => {
   const auth = getAuth()
   try {
     const userCredential = await createUserWithEmailAndPassword(auth, email.value, password.value)
     const user = userCredential.user
-    const avatarUrl = getRandomAvatar()
 
-    // ✅ อัปเดต Firebase Auth
+    // ✅ อัปเดต Firebase Auth (ไม่ใส่ photoURL)
     await updateProfile(user, {
-      displayName: username.value,
-      photoURL: avatarUrl
+      displayName: username.value
     })
 
-    // ✅ บันทึกลง Firestore
+    // ✅ บันทึกลง Firestore โดยไม่ใส่ avatar
     await setDoc(doc(db, 'users', user.uid), {
       displayName: username.value,
       email: email.value,
-      avatar: avatarUrl
+      avatar: '', // หรือ default path เช่น "profile-avatars/default.png"
+      role: 'user',
+      isAdmin: false
     })
 
     alert('✅ สมัครเรียบร้อย')
     router.push('/dashboard')
   } catch (err) {
-    alert('❌ มีemail,passwordหรือusernameซ้ำ สมัครใหม่นะ ' )
+    alert('❌ มี email, password หรือ username ซ้ำ สมัครใหม่นะ')
   }
 }
+
 </script>
 
 <style scoped>
