@@ -97,11 +97,6 @@ const formatDate = (date) => {
         :key="i"
         class="bg-white p-4 rounded-xl shadow hover:shadow-md transition border border-indigo-200"
       >
-        <img
-          src="https://via.placeholder.com/400x200?text=Menu+Image"
-          alt="menu"
-          class="w-full h-40 object-cover rounded-lg mb-3"
-        />
         <h2 class="text-lg font-bold text-indigo-600 mb-1">🍽️ {{ rec.name }}</h2>
         <p class="text-sm text-gray-600">
           <strong>วัตถุดิบ:</strong> {{ rec.ingredients?.join(', ') || '-' }}

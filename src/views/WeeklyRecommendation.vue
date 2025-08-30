@@ -32,7 +32,7 @@
     </div>
 
     <div class="selection-box">
-      <label>เลือกเครื่องเทศ/สมุนไพรไทยที่ชอบ</label>
+      <label>เลือกเครื่องเทศ</label>
       <multiselect
         v-model="selectedSpices"
         :options="combinedSpices"
@@ -41,12 +41,12 @@
         track-by="name"
         class="custom-select"
         :close-on-select="false"
-        placeholder="เครื่องปรุง"
+        placeholder="เครื่องเทศ"
       />
     </div>
 
     <div class="selection-box">
-      <label>เลือกประเภทเมนูอาหารที่ชอบ</label>
+      <label>วิธีปรุง</label>
       <multiselect
         v-model="selectedTypes"
         :options="typeOptions"
@@ -55,13 +55,8 @@
         track-by="name"
         class="custom-select"
         :close-on-select="false"
-        placeholder="เลือกประเภทอาหาร"
+        placeholder="วิธีปรุง"
       />
-    </div>
-
-    <div class="input-box">
-      <label>กรอกชื่อเมนูที่ชอบ</label>
-      <input v-model="favoriteDish" type="text" placeholder="กรอกชื่อเมนูที่ชอบ" />
     </div>
 
     <button @click="handleSubmit">ตกลง</button>
@@ -103,7 +98,7 @@ const veggieOptions = [
   { name: 'รากผักชี' }, { name: 'พริกไทยดำ' }, { name: 'หอมแดง' }, { name: 'กะทิ' }, { name: 'ขมิ้น' },
   { name: 'มะกรูด' }, { name: 'ใบโหระพา' }, { name: 'ใบแมงลัก' }, { name: 'เม็ดผักชี' }, { name: 'ผักชีฝรั่ง' },
   { name: 'มะนาว' }, { name: 'ต้นหอม' }, { name: 'ใบกะเพรา' }, { name: 'พริกไทย' }, { name: 'กระเททียมเจียว' },
-  { name: 'หอมใหญ่' }, { name: 'ขมิ้น' }, { name: 'พริกหยวก' }
+  { name: 'หอมใหญ่' }, { name: 'ขมิ้น' }, { name: 'พริกหยวก' }, { name: 'โป๋ยกัํก' }
 ]
 
 const typeOptions = [
