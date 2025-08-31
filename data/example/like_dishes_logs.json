@@ -1,0 +1,32 @@
+[
+  {
+    "email": "a@example.com",
+    "menuname": "ผัดกะเพราไก่",
+    "timestamp": "2025-08-20T10:00:00Z"
+  },
+  {
+    "email": "a@example.com",
+    "menuname": "ไข่เจียวหมูสับ",
+    "timestamp": "2025-08-22T10:00:00Z"
+  },
+  {
+    "email": "a@example.com",
+    "menuname": "ต้มยำกุ้ง",
+    "timestamp": "2025-08-24T10:00:00Z"
+  },
+  {
+    "email": "b@example.com",
+    "menuname": "ต้มจืดเต้าหู้สาหร่าย",
+    "timestamp": "2025-08-20T10:00:00Z"
+  },
+  {
+    "email": "b@example.com",
+    "menuname": "ผัดผักรวม",
+    "timestamp": "2025-08-22T10:00:00Z"
+  },
+  {
+    "email": "b@example.com",
+    "menuname": "แกงจืดมะระยัดไส้",
+    "timestamp": "2025-08-24T10:00:00Z"
+  }
+]

@@ -1,0 +1,18 @@
+[
+  {
+    "email": "a@example.com",
+    "favoriteMeat": "ไก่",
+    "favoriteVegetables": "กะหล่ำปลี",
+    "favoriteSpices": "พริก",
+    "favoriteMethod": "ผัด",
+    "displayName": "A"
+  },
+  {
+    "email": "b@example.com",
+    "favoriteMeat": "หมู",
+    "favoriteVegetables": "แตงกวา",
+    "favoriteSpices": "กระเทียม",
+    "favoriteMethod": "ต้ม",
+    "displayName": "B"
+  }
+]
