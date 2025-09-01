@@ -17,7 +17,7 @@ export async function fetchLogs() {
 export function transformToTransactions(logs) {
   return logs
     .map(log => log.liked_dishes || [])
-    .filter(t => t.length >= 2); // ✅ ใช้เฉพาะ log ที่มีเมนู ≥ 2
+    .filter(t => t.length >= 2); // ใช้เฉพาะ log ที่มีเมนู ≥ 2
 }
 
 /**
@@ -28,7 +28,7 @@ export function runApriori(transactions, minSupport = 0.3, minConfidence = 0.6) 
   const total = transactions.length;
   const rules = [];
 
-  // ✅ นับเมนูเดี่ยว
+  // นับเมนูเดี่ยว
   transactions.forEach(items => {
     const uniqueItems = [...new Set(items)];
     uniqueItems.forEach(item => {
@@ -36,12 +36,12 @@ export function runApriori(transactions, minSupport = 0.3, minConfidence = 0.6) 
     });
   });
 
-  // ✅ คัดเมนูที่ผ่าน support
+  // คัดเมนูที่ผ่าน support
   const frequentItems = Object.entries(itemCount)
     .filter(([_, count]) => count / total >= minSupport)
     .map(([item]) => item);
 
-  // ✅ สร้างกฎแบบง่าย
+  // สร้างกฎแบบง่าย
   transactions.forEach(items => {
     const filtered = items.filter(i => frequentItems.includes(i));
     if (filtered.length < 2) return;
@@ -69,7 +69,7 @@ export function runApriori(transactions, minSupport = 0.3, minConfidence = 0.6) 
 /**
  * Suggest from Apriori rules
  */
-export function suggestFromApriori(rules, liked_dishes) {
+export function suggestFromApriori(liked_dishes, rules) {
   const suggestions = new Set();
   rules.forEach(rule => {
     const left = rule.lhs;
@@ -79,4 +79,30 @@ export function suggestFromApriori(rules, liked_dishes) {
     }
   });
   return [...suggestions];
+}
+
+/**
+ * Main Apriori Function with filtering to prevent incorrect dish recommendations
+ * This filters out recommendations that don't match the user's selected inputs
+ * while still allowing apriori-based recommendations when no strict input is provided.
+ */
+export async function generateFilteredRecommendations(userInput, liked_dishes) {
+  const logs = await fetchLogs(); // ดึงข้อมูลการกดไลค์จาก Firestore
+  const transactions = transformToTransactions(logs); // แปลงข้อมูลการกดไลค์เป็นรายการเมนูที่ผู้ใช้ชอบ
+  
+  // Run Apriori algorithm to get association rules
+  const rules = runApriori(transactions); // คำนวณกฎ Apriori
+  
+  // Filter recommendations based on user-selected ingredients and preferred dish types
+  let filteredRecommendations = suggestFromApriori(liked_dishes, rules);
+
+  // Apply user preferences (filtering recommendations based on meats, veggies, methods, etc.)
+  filteredRecommendations = filteredRecommendations.filter(recipe => {
+    // ตรวจสอบว่าเมนูตรงกับการเลือกของผู้ใช้หรือไม่
+    return userInput.meats.every(meat => recipe.includes(meat)) &&
+           userInput.veggies.every(veg => recipe.includes(veg)) &&
+           userInput.methods.every(method => recipe.includes(method));
+  });
+
+  return filteredRecommendations; // คืนค่ารายการเมนูที่กรองแล้ว
 }
