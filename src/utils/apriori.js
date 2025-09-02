@@ -99,9 +99,12 @@ export async function generateFilteredRecommendations(userInput, liked_dishes) {
   // Apply user preferences (filtering recommendations based on meats, veggies, methods, etc.)
   filteredRecommendations = filteredRecommendations.filter(recipe => {
     // ตรวจสอบว่าเมนูตรงกับการเลือกของผู้ใช้หรือไม่
-    return userInput.meats.every(meat => recipe.includes(meat)) &&
-           userInput.veggies.every(veg => recipe.includes(veg)) &&
-           userInput.methods.every(method => recipe.includes(method));
+    const recipeIngredients = recipe.toLowerCase().split(','); // Assuming recipe is a string with comma-separated ingredients
+    const meatsMatch = userInput.meats.every(meat => recipeIngredients.includes(meat.toLowerCase()));
+    const veggiesMatch = userInput.veggies.every(veg => recipeIngredients.includes(veg.toLowerCase()));
+    const methodsMatch = userInput.methods.every(method => recipe.includes(method.toLowerCase()));
+    
+    return meatsMatch && veggiesMatch && methodsMatch;
   });
 
   return filteredRecommendations; // คืนค่ารายการเมนูที่กรองแล้ว

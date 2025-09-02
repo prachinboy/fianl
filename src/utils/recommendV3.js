@@ -1,4 +1,3 @@
-
 /**
  * Content-based recommendation (V3)
  * Calculates a score based on meats, veggies, methods, and favorite dishes.
@@ -8,6 +7,16 @@
 
 import recipes from '../data/recipes.json';
 
+// Synonyms for ingredients
+const synonyms = {
+  "ไก่": ["ไก่", "อกไก่", "น่องไก่", "chicken"],
+  "หมู": ["หมู", "เนื้อหมู", "pork"],
+  "เนื้อ": ["เนื้อ", "เนื้อวัว", "beef"],
+  "กุ้ง": ["กุ้ง", "shrimp"],
+  "ปลา": ["ปลา", "fish"],
+  "เป็ด": ["เป็ด", "duck"]
+};
+
 export function recommendV3(userInput) {
   const { meats = [], veggies = [], methods = [], favorite = "" } = userInput;
 
@@ -15,12 +24,16 @@ export function recommendV3(userInput) {
     let score = 0;
     const name = recipe.name.toLowerCase();
     const ingredients = (recipe.ingredients || []).map(i => i.toLowerCase());
+    const methodText = (recipe.method || "").toLowerCase();
 
     // Score meats
     meats.forEach(meat => {
-      if (ingredients.includes(meat.toLowerCase()) || name.includes(meat.toLowerCase())) {
-        score += 2;
-      }
+      const meatSynonyms = synonyms[meat] || [meat];
+      meatSynonyms.forEach(synonym => {
+        if (ingredients.includes(synonym.toLowerCase()) || name.includes(synonym.toLowerCase())) {
+          score += 2;
+        }
+      });
     });
 
     // Score veggies
@@ -32,7 +45,7 @@ export function recommendV3(userInput) {
 
     // Score methods
     methods.forEach(method => {
-      if ((recipe.method || "").toLowerCase().includes(method.toLowerCase())) {
+      if (methodText.includes(method.toLowerCase())) {
         score += 2;
       }
     });
@@ -48,8 +61,9 @@ export function recommendV3(userInput) {
     }
 
     return { name: recipe.name, score };
-  }).filter(r => r.score > 0)
-    .sort((a, b) => b.score - a.score);
+  })
+  .filter(r => r.score > 0) // Only return recipes with a positive score
+  .sort((a, b) => b.score - a.score); // Sort by highest score
 }
 
 export default recommendV3;

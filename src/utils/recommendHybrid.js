@@ -50,7 +50,7 @@ export function filterRecipesByInput(userInput, recipes) {
 
       const hasSelectedMeat =
         !safeInput.meats.length ||
-        safeInput.meats.some(m =>
+        safeInput.meats.every(m =>
           (synonyms[m] || [m]).some(syn =>
             ing.some(i => i.includes(syn.toLowerCase())) ||
             nameLower.includes(syn.toLowerCase())
@@ -124,7 +124,7 @@ export async function recommendHybrid(userInput, liked_dishes = []) {
   let v3Results = (recommendV3(safeInput) || [])
     .filter(r => r && r.name && strictFiltered.some(f => f.name === r.name));
 
-  // ✅ Favorite
+  // ✅ Favorite (เพิ่มคะแนนให้เมนูที่ตรง)
   if (safeInput.favorite) {
     const strictFav = strictFiltered.find(r =>
       (r.name || "").includes(safeInput.favorite)
@@ -134,7 +134,7 @@ export async function recommendHybrid(userInput, liked_dishes = []) {
     }
   }
 
-  // ✅ Apriori
+  // ✅ Apriori (กรองผลตามที่มีการ Like)
   let aprioriResults = [];
   try {
     const logs = await fetchLogs();
@@ -146,7 +146,7 @@ export async function recommendHybrid(userInput, liked_dishes = []) {
     console.error("❌ Apriori Error:", err);
   }
 
-  // ✅ รวมผลลัพธ์
+  // ✅ รวมผลลัพธ์จาก Content-Based + Apriori
   const allResults = {};
   function addOrUpdate(dish, score, source) {
     if (!dish) return;
