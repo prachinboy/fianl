@@ -1,9 +1,6 @@
 import { db } from '../firebase/firebaseConfig.js';
 import { collection, getDocs } from 'firebase/firestore';
 
-/**
- * Fetch logs from Firestore
- */
 export async function fetchLogs() {
   const logs = [];
   const snapshot = await getDocs(collection(db, 'recommend_logs'));
@@ -11,24 +8,17 @@ export async function fetchLogs() {
   return logs;
 }
 
-/**
- * Transform logs to transactions (Only keep logs with at least 2 dishes)
- */
 export function transformToTransactions(logs) {
   return logs
     .map(log => log.liked_dishes || [])
-    .filter(t => t.length >= 2); // ใช้เฉพาะ log ที่มีเมนู ≥ 2
+    .filter(t => t.length >= 2);
 }
 
-/**
- * Simple Apriori Implementation (Browser Safe)
- */
 export function runApriori(transactions, minSupport = 0.3, minConfidence = 0.6) {
   const itemCount = {};
   const total = transactions.length;
   const rules = [];
 
-  // นับเมนูเดี่ยว
   transactions.forEach(items => {
     const uniqueItems = [...new Set(items)];
     uniqueItems.forEach(item => {
@@ -36,12 +26,10 @@ export function runApriori(transactions, minSupport = 0.3, minConfidence = 0.6) 
     });
   });
 
-  // คัดเมนูที่ผ่าน support
   const frequentItems = Object.entries(itemCount)
     .filter(([_, count]) => count / total >= minSupport)
     .map(([item]) => item);
 
-  // สร้างกฎแบบง่าย
   transactions.forEach(items => {
     const filtered = items.filter(i => frequentItems.includes(i));
     if (filtered.length < 2) return;
@@ -66,46 +54,58 @@ export function runApriori(transactions, minSupport = 0.3, minConfidence = 0.6) 
   return rules;
 }
 
-/**
- * Suggest from Apriori rules
- */
 export function suggestFromApriori(liked_dishes, rules) {
   const suggestions = new Set();
   rules.forEach(rule => {
-    const left = rule.lhs;
-    const right = rule.rhs;
-    if (left.every(item => liked_dishes.includes(item))) {
-      right.forEach(item => suggestions.add(item));
+    if (rule.lhs.every(item => liked_dishes.includes(item))) {
+      rule.rhs.forEach(item => suggestions.add(item));
     }
   });
   return [...suggestions];
 }
 
-/**
- * Main Apriori Function with filtering to prevent incorrect dish recommendations
- * This filters out recommendations that don't match the user's selected inputs
- * while still allowing apriori-based recommendations when no strict input is provided.
- */
 export async function generateFilteredRecommendations(userInput, liked_dishes) {
-  const logs = await fetchLogs(); // ดึงข้อมูลการกดไลค์จาก Firestore
-  const transactions = transformToTransactions(logs); // แปลงข้อมูลการกดไลค์เป็นรายการเมนูที่ผู้ใช้ชอบ
-  
-  // Run Apriori algorithm to get association rules
-  const rules = runApriori(transactions); // คำนวณกฎ Apriori
-  
-  // Filter recommendations based on user-selected ingredients and preferred dish types
-  let filteredRecommendations = suggestFromApriori(liked_dishes, rules);
+  const logs = await fetchLogs();
+  const transactions = transformToTransactions(logs);
+  const rules = runApriori(transactions);
+  const rawSuggestions = suggestFromApriori(liked_dishes, rules);
 
-  // Apply user preferences (filtering recommendations based on meats, veggies, methods, etc.)
-  filteredRecommendations = filteredRecommendations.filter(recipe => {
-    // ตรวจสอบว่าเมนูตรงกับการเลือกของผู้ใช้หรือไม่
-    const recipeIngredients = recipe.toLowerCase().split(','); // Assuming recipe is a string with comma-separated ingredients
-    const meatsMatch = userInput.meats.every(meat => recipeIngredients.includes(meat.toLowerCase()));
-    const veggiesMatch = userInput.veggies.every(veg => recipeIngredients.includes(veg.toLowerCase()));
-    const methodsMatch = userInput.methods.every(method => recipe.includes(method.toLowerCase()));
-    
+  const snapshot = await getDocs(collection(db, 'recipes'));
+  const recipesMap = {};
+  snapshot.forEach(doc => {
+    const data = doc.data();
+    if (data.name) {
+      recipesMap[data.name] = {
+        ingredients: Array.isArray(data.ingredients) ? data.ingredients.map(i => i.toLowerCase()) : [],
+        method: (data.method || "").toLowerCase(),
+        type: (data.type || "").toLowerCase()
+      };
+    }
+  });
+
+  const meats = userInput.meats.map(m => m.toLowerCase());
+  const veggies = userInput.veggies.map(v => v.toLowerCase());
+  const methods = userInput.types.map(m => m.toLowerCase());
+
+  const filtered = rawSuggestions.filter(name => {
+    const recipe = recipesMap[name];
+    if (!recipe) return false;
+
+    const ing = recipe.ingredients || [];
+    const methodText = recipe.method || "";
+    const typeText = recipe.type || "";
+
+    const meatsMatch = meats.every(m => ing.includes(m));
+    const veggiesMatch = veggies.every(v => ing.includes(v));
+    const methodsMatch = methods.every(m => methodText === m || typeText === m);
+
     return meatsMatch && veggiesMatch && methodsMatch;
   });
 
-  return filteredRecommendations; // คืนค่ารายการเมนูที่กรองแล้ว
+  return filtered.map(name => ({
+    name,
+    score: 0.5,
+    source: ["apriori"],
+    category: "diverse"
+  }));
 }

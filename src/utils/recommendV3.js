@@ -1,13 +1,3 @@
-/**
- * Content-based recommendation (V3)
- * Calculates a score based on meats, veggies, methods, and favorite dishes.
- * @param {Object} userInput - { meats, veggies, methods, favorite }
- * @returns {Array} - Array of recommended recipes with scores
- */
-
-import recipes from '../data/recipes.json';
-
-// Synonyms for ingredients
 const synonyms = {
   "ไก่": ["ไก่", "อกไก่", "น่องไก่", "chicken"],
   "หมู": ["หมู", "เนื้อหมู", "pork"],
@@ -17,53 +7,51 @@ const synonyms = {
   "เป็ด": ["เป็ด", "duck"]
 };
 
-export function recommendV3(userInput) {
-  const { meats = [], veggies = [], methods = [], favorite = "" } = userInput;
+export function recommendV3(userInput, recipes = []) {
+  const { meats = [], veggies = [], types = [], favorite = "" } = userInput;
 
   return recipes.map(recipe => {
-    let score = 0;
-    const name = recipe.name.toLowerCase();
+    const name = (recipe.name || "").toLowerCase();
     const ingredients = (recipe.ingredients || []).map(i => i.toLowerCase());
-    const methodText = (recipe.method || "").toLowerCase();
+    const method = (recipe.method || "").toLowerCase();
+    const type = (recipe.type || "").toLowerCase();
 
-    // Score meats
-    meats.forEach(meat => {
-      const meatSynonyms = synonyms[meat] || [meat];
-      meatSynonyms.forEach(synonym => {
-        if (ingredients.includes(synonym.toLowerCase()) || name.includes(synonym.toLowerCase())) {
-          score += 2;
-        }
-      });
+    let score = 0;
+    const source = [];
+
+    let methodMatch = types.some(t => method === t.toLowerCase() || type === t.toLowerCase());
+    let meatMatch = meats.some(meat => {
+      const syns = synonyms[meat] || [meat];
+      return syns.some(s => ingredients.includes(s.toLowerCase()));
     });
+    let vegMatch = veggies.some(v => ingredients.includes(v.toLowerCase()));
+    let favMatch = favorite && name.includes(favorite.toLowerCase());
 
-    // Score veggies
-    veggies.forEach(veg => {
-      if (ingredients.includes(veg.toLowerCase()) || name.includes(veg.toLowerCase())) {
-        score += 1.5;
-      }
-    });
-
-    // Score methods
-    methods.forEach(method => {
-      if (methodText.includes(method.toLowerCase())) {
-        score += 2;
-      }
-    });
-
-    // Favorite dish bonus
-    if (favorite && name.includes(favorite.toLowerCase())) {
+    if (methodMatch) {
+      score += 2;
+      source.push("method");
+    }
+    if (meatMatch) {
+      score += 2;
+      source.push("meat");
+    }
+    if (vegMatch) {
+      score += 1.5;
+      source.push("veggie");
+    }
+    if (favMatch) {
       score += 3;
+      source.push("favorite");
     }
 
-    // Penalize disliked or irrelevant (optional if needed)
-    if (recipe.disliked_dishes && recipe.disliked_dishes.includes(name)) {
-      score -= 999;
-    }
+    let category = "diverse";
+    if (methodMatch && meatMatch && vegMatch) category = "strict";
+    else if (methodMatch || meatMatch || vegMatch) category = "similar";
 
-    return { name: recipe.name, score };
+    return { name: recipe.name, score, source, category };
   })
-  .filter(r => r.score > 0) // Only return recipes with a positive score
-  .sort((a, b) => b.score - a.score); // Sort by highest score
+  .filter(r => r.score > 0)
+  .sort((a, b) => b.score - a.score);
 }
 
 export default recommendV3;
