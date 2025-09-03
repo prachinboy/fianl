@@ -101,6 +101,11 @@ export async function recommendHybrid(userInput, liked_dishes = []) {
   }
 
   const allRecipes = await fetchRecipesFromFirestore();
+  if (!Array.isArray(allRecipes) || allRecipes.length === 0) {
+    console.warn("⚠️ No recipes found from Firestore");
+    return [];
+  }
+
   const strictFiltered = filterRecipesByInput(userInput, allRecipes, "strict");
   const relaxedFiltered = filterRecipesByInput(userInput, allRecipes, "relaxed");
   const v3Results = recommendV3(userInput, allRecipes);
@@ -120,40 +125,97 @@ export async function recommendHybrid(userInput, liked_dishes = []) {
   }
 
   const allResults = {};
-  function addOrUpdate(dish, score, source) {
-    if (!dish) return;
-    if (!allResults[dish]) {
-      allResults[dish] = { score: 0, source: [] };
+  function addOrUpdate(recipe, score, source) {
+    if (!recipe || !recipe.name) return;
+    if (!allResults[recipe.name]) {
+      allResults[recipe.name] = { score: 0, source: [], recipe };
     }
-    allResults[dish].score += score;
-    if (!allResults[dish].source.includes(source)) {
-      allResults[dish].source.push(source);
+    allResults[recipe.name].score += score;
+    if (!allResults[recipe.name].source.includes(source)) {
+      allResults[recipe.name].source.push(source);
     }
   }
 
-  strictV3.forEach(r => addOrUpdate(r.name, r.score * 1.5, 'strict'));
-  similarV3.forEach(r => addOrUpdate(r.name, r.score, 'similar'));
-  diverseV3.forEach(r => addOrUpdate(r.name, r.score * 0.8, 'diverse'));
-  aprioriResults.forEach(r => addOrUpdate(r.name, 1.5, 'apriori'));
+  strictV3.forEach(r => addOrUpdate(allRecipes.find(x => x.name === r.name), r.score * 1.5, 'strict'));
+  similarV3.forEach(r => addOrUpdate(allRecipes.find(x => x.name === r.name), r.score, 'similar'));
+  diverseV3.forEach(r => addOrUpdate(allRecipes.find(x => x.name === r.name), r.score * 0.8, 'diverse'));
+  aprioriResults.forEach(r => addOrUpdate(r, 1.5, 'apriori'));
 
   let finalResults = Object.entries(allResults)
-    .map(([name, { score, source }]) => ({ name, score, source }))
+    .map(([name, { score, source, recipe }]) => ({ name, score, source, recipe }))
+    .filter(r => r.recipe && r.name)
     .sort((a, b) => b.score - a.score);
 
-  const existingNames = finalResults.map(r => r.name);
+  const used = new Set(finalResults.map(r => r.name));
+
+  // 🧠 Curated override สำหรับเมนูเบา/กลาง/หนัก
+  const mealWeightOverrides = {
+    light: [
+      "ข้าวต้ม", "น้ำเต้าหู้", "ซุป", "บะหมี่น้ำ", "แกงจืด", "ผัดบวบใส่ไข่", "ผัดฟักทองไข่"
+    ],
+    medium: [
+      "ข้าวผัด", "ผัดซีอิ๊ว", "ผัดเต้าหู้หมู", "ผัดหน่อไม้", "ผัดคะน้าหมูกรอบ", "ข้าวหน้าไก่"
+    ],
+    heavy: [
+      "ต้มยำ", "แกงพะแนง", "แกงมัสมั่น", "ลาบ", "ห่อหมก", "ข้าวหมูแดง", "หมูกรอบ",
+      "สะโพกไก่ทอด", "ผัดพริกแกง", "ข้าวคลุกกะปิ"
+    ]
+  };
+
+  function classifyMealWeight(recipe) {
+    const name = (recipe.name || "").toLowerCase();
+    const method = (recipe.method || "").toLowerCase();
+    const ingredients = recipe.ingredients?.map(i => i.toLowerCase()) || [];
+
+    if (mealWeightOverrides.light.some(n => name.includes(n))) return "light";
+    if (mealWeightOverrides.medium.some(n => name.includes(n))) return "medium";
+    if (mealWeightOverrides.heavy.some(n => name.includes(n))) return "heavy";
+
+    let score = 0;
+    if (/ต้ม|นึ่ง|ซุป/.test(method)) score -= 2;
+    if (/ผัด|แกงจืด/.test(method)) score += 0;
+    if (/ทอด|ย่าง|อบ|แกงเผ็ด/.test(method)) score += 2;
+
+    if (ingredients.some(i => /เต้าหู้|ไข่/.test(i))) score -= 1;
+    if (ingredients.some(i => /หมู|เนื้อ|เป็ด/.test(i))) score += 2;
+
+    if (score <= -1) return "light";
+    if (score <= 1) return "medium";
+    return "heavy";
+  }
+
+  const fallback = allRecipes
+    .filter(r => !used.has(r.name))
+    .map(r => ({
+      name: r.name,
+      score: 0.1,
+      source: ["filler"],
+      recipe: r,
+      weight: classifyMealWeight(r)
+    }));
+
+  const light = fallback.find(r => r.weight === "light");
+  const medium = fallback.find(r => r.weight === "medium");
+  const heavy = fallback.find(r => r.weight === "heavy");
+
+  const filler = [light, medium, heavy].filter(r => r && r.name);
 
   if (finalResults.length < 7) {
-    const filler = allRecipes
-      .filter(r => !existingNames.includes(r.name))
-      .sort(() => Math.random() - 0.5)
-      .slice(0, 7 - finalResults.length)
-      .map(r => ({ name: r.name, score: 0.1, source: ["filler"] }));
-    finalResults = [...finalResults, ...filler];
+    const remaining = 7 - finalResults.length;
+    finalResults = [...finalResults, ...filler.slice(0, remaining)];
+  }
+
+  if (finalResults.length === 0) {
+    finalResults = allRecipes.slice(0, 7).map(r => ({
+      name: r.name,
+      score: 0.1,
+      source: ["default"],
+      recipe: r
+    }));
   }
 
   return finalResults.slice(0, 7);
 }
-
 
 export async function recommendWeekly7Days(userInput, liked_dishes = []) {
   const days = ["จันทร์", "อังคาร", "พุธ", "พฤหัสบดี", "ศุกร์", "เสาร์", "อาทิตย์"];
@@ -161,6 +223,11 @@ export async function recommendWeekly7Days(userInput, liked_dishes = []) {
   const usedMenus = new Set();
 
   const allRecipes = await fetchRecipesFromFirestore();
+  if (!Array.isArray(allRecipes) || allRecipes.length === 0) {
+    console.warn("⚠️ No recipes found from Firestore");
+    return [];
+  }
+
   const strictFiltered = filterRecipesByInput(userInput, allRecipes, "strict");
   const relaxedFiltered = filterRecipesByInput(userInput, allRecipes, "relaxed");
   const v3Results = recommendV3(userInput, allRecipes);
@@ -179,54 +246,68 @@ export async function recommendWeekly7Days(userInput, liked_dishes = []) {
     console.error("❌ Apriori Error:", err);
   }
 
+  const allCandidates = [
+    ...strictMenus,
+    ...aprioriMenus,
+    ...similarMenus,
+    ...diverseMenus
+  ].map(r => allRecipes.find(x => x.name === r.name)).filter(r => r && r.name);
+
+  // 🧠 Curated override สำหรับเมนูเบา/กลาง/หนัก
+  const mealWeightOverrides = {
+    light: [
+      "ข้าวต้ม", "น้ำเต้าหู้", "ซุป", "บะหมี่น้ำ", "แกงจืด", "ผัดบวบใส่ไข่", "ผัดฟักทองไข่"
+    ],
+    medium: [
+      "ข้าวผัด", "ผัดซีอิ๊ว", "ผัดเต้าหู้หมู", "ผัดหน่อไม้", "ผัดคะน้าหมูกรอบ", "ข้าวหน้าไก่"
+    ],
+    heavy: [
+      "ต้มยำ", "แกงพะแนง", "แกงมัสมั่น", "ลาบ", "ห่อหมก", "ข้าวหมูแดง", "หมูกรอบ",
+      "สะโพกไก่ทอด", "ผัดพริกแกง", "ข้าวคลุกกะปิ"
+    ]
+  };
+
+  function classifyMealWeight(recipe) {
+    const name = (recipe.name || "").toLowerCase();
+    const method = (recipe.method || "").toLowerCase();
+    const ingredients = recipe.ingredients?.map(i => i.toLowerCase()) || [];
+
+    if (mealWeightOverrides.light.some(n => name.includes(n))) return "light";
+    if (mealWeightOverrides.medium.some(n => name.includes(n))) return "medium";
+    if (mealWeightOverrides.heavy.some(n => name.includes(n))) return "heavy";
+
+    let score = 0;
+    if (/ต้ม|นึ่ง|ซุป/.test(method)) score -= 2;
+    if (/ผัด|แกงจืด/.test(method)) score += 0;
+    if (/ทอด|ย่าง|อบ|แกงเผ็ด/.test(method)) score += 2;
+
+    if (ingredients.some(i => /เต้าหู้|ไข่/.test(i))) score -= 1;
+    if (ingredients.some(i => /หมู|เนื้อ|เป็ด/.test(i))) score += 2;
+
+    if (score <= -1) return "light";
+    if (score <= 1) return "medium";
+    return "heavy";
+  }
+
   for (let i = 0; i < 7; i++) {
-    const dayMenus = [];
+    const pickMeal = (weight) => {
+      return allCandidates.find(r => !usedMenus.has(r.name) && classifyMealWeight(r) === weight)
+          || allRecipes.find(r => !usedMenus.has(r.name) && classifyMealWeight(r) === weight);
+    };
 
-    const strict = strictMenus.filter(r => !usedMenus.has(r.name)).slice(0, 2);
-    strict.forEach(r => {
-      dayMenus.push({ name: r.name, score: r.score, source: r.source });
-      usedMenus.add(r.name);
-    });
+    const breakfast = pickMeal("light") || allRecipes.find(r => !usedMenus.has(r.name));
+    const lunch = pickMeal("medium") || allRecipes.find(r => !usedMenus.has(r.name));
+    const dinner = pickMeal("heavy") || allRecipes.find(r => !usedMenus.has(r.name));
 
-    if (dayMenus.length < 3) {
-      const apriori = aprioriMenus.filter(r => !usedMenus.has(r.name)).slice(0, 1);
-      apriori.forEach(r => {
-        dayMenus.push({ name: r.name, score: r.score, source: r.source });
-        usedMenus.add(r.name);
-      });
-    }
-
-    if (dayMenus.length < 3) {
-      const similar = similarMenus.filter(r => !usedMenus.has(r.name)).slice(0, 1);
-      similar.forEach(r => {
-        dayMenus.push({ name: r.name, score: r.score, source: r.source });
-        usedMenus.add(r.name);
-      });
-    }
-
-    if (dayMenus.length < 3) {
-      const diverse = diverseMenus.filter(r => !usedMenus.has(r.name)).slice(0, 1);
-      diverse.forEach(r => {
-        dayMenus.push({ name: r.name, score: r.score, source: r.source });
-        usedMenus.add(r.name);
-      });
-    }
-
-    if (dayMenus.length < 3) {
-      const filler = allRecipes.filter(r => !usedMenus.has(r.name));
-      while (dayMenus.length < 3 && filler.length > 0) {
-        const r = filler.shift();
-        dayMenus.push({ name: r.name, score: 0.1, source: ["filler"] });
-        usedMenus.add(r.name);
-      }
-    }
+    const safeMeals = [breakfast, lunch, dinner].filter(r => r && r.name);
+    safeMeals.forEach(r => usedMenus.add(r.name));
 
     weeklyResults.push({
       day: `วัน${days[i]}`,
       meals: [
-        { time: "เช้า", name: dayMenus[0]?.name || "-", score: dayMenus[0]?.score || 0 },
-        { time: "กลางวัน", name: dayMenus[1]?.name || "-", score: dayMenus[1]?.score || 0 },
-        { time: "เย็น", name: dayMenus[2]?.name || "-", score: dayMenus[2]?.score || 0 }
+        { time: "เช้า", name: breakfast?.name || "-", score: 1 },
+        { time: "กลางวัน", name: lunch?.name || "-", score: 1 },
+        { time: "เย็น", name: dinner?.name || "-", score: 1 }
       ]
     });
   }
