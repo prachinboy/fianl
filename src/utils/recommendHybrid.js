@@ -1,5 +1,5 @@
 import { recommendV3 } from './recommendV3.js';
-import { fetchLogs, transformToTransactions, runApriori, suggestFromApriori } from './apriori.js';
+import { getAprioriSuggestions } from './apriori.js';
 import { db } from '@/firebase/firebaseConfig';
 import { doc, getDoc, collection, getDocs } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
@@ -27,7 +27,7 @@ export async function fetchRecipesFromFirestore() {
   }).filter(r => r.name);
 }
 
-export function filterRecipesByInput(userInput, recipes) {
+export function filterRecipesByInput(userInput, recipes, mode = "strict") {
   const safeInput = {
     meats: Array.isArray(userInput.meats) ? userInput.meats : [],
     veggies: Array.isArray(userInput.veggies) ? userInput.veggies : [],
@@ -35,54 +35,52 @@ export function filterRecipesByInput(userInput, recipes) {
     favorite: userInput.favorite || ""
   };
 
-  return recipes
-    .filter(recipe => recipe && recipe.name)
-    .filter(recipe => {
-      const ing = Array.isArray(recipe.ingredients)
-        ? recipe.ingredients.map(i => (i || "").toLowerCase())
-        : [];
-      const methodText = (recipe.method || "").toLowerCase();
-      const typeText = (recipe.type || "").toLowerCase();
-      const nameLower = (recipe.name || "").toLowerCase();
+  return recipes.filter(recipe => {
+    const ing = Array.isArray(recipe.ingredients)
+      ? recipe.ingredients.map(i => (i || "").toLowerCase())
+      : [];
+    const methodText = (recipe.method || "").toLowerCase();
+    const typeText = (recipe.type || "").toLowerCase();
+    const nameLower = (recipe.name || "").toLowerCase();
 
-      const hasSelectedMeat =
-        !safeInput.meats.length ||
-        safeInput.meats.every(m =>
-          (synonyms[m] || [m]).some(syn =>
-            ing.some(i => i.includes(syn.toLowerCase())) ||
-            nameLower.includes(syn.toLowerCase())
+    const hasSelectedMeat =
+      !safeInput.meats.length ||
+      safeInput.meats.every(m =>
+        (synonyms[m] || [m]).some(syn =>
+          ing.some(i => i.includes(syn.toLowerCase())) || nameLower.includes(syn.toLowerCase())
+        )
+      );
+
+    const noOtherMeat =
+      !safeInput.meats.length ||
+      !ing.some(i =>
+        Object.keys(synonyms)
+          .filter(key => !safeInput.meats.includes(key))
+          .some(other =>
+            (synonyms[other] || [other]).some(syn => i.includes(syn.toLowerCase()))
           )
-        );
+      );
 
-      const noOtherMeat =
-        !safeInput.meats.length ||
-        !ing.some(i =>
-          Object.keys(synonyms)
-            .filter(key => !safeInput.meats.includes(key))
-            .some(other =>
-              (synonyms[other] || [other]).some(syn => i.includes(syn.toLowerCase()))
-            )
-        );
+    const vegOk =
+      !safeInput.veggies.length ||
+      safeInput.veggies.every(v =>
+        ing.some(i => i.includes(v.toLowerCase())) || nameLower.includes(v.toLowerCase())
+      );
 
-      const vegOk =
-        !safeInput.veggies.length ||
-        safeInput.veggies.every(v =>
-          ing.some(i => i.includes(v.toLowerCase())) || nameLower.includes(v.toLowerCase())
-        );
+    const methodOk =
+      !safeInput.types.length ||
+      safeInput.types.every(t =>
+        methodText.includes(t.toLowerCase()) || typeText.includes(t.toLowerCase())
+      );
 
-      const methodOk =
-        !safeInput.types.length ||
-        safeInput.types.every(t =>
-          methodText.includes(t.toLowerCase()) || typeText.includes(t.toLowerCase())
-        );
+    const favOk =
+      !safeInput.favorite || nameLower.includes(safeInput.favorite.toLowerCase());
 
-      const favOk =
-        !safeInput.favorite || nameLower.includes(safeInput.favorite.toLowerCase());
-
-      return hasSelectedMeat && noOtherMeat && vegOk && methodOk && favOk;
-    });
+    return mode === "strict"
+      ? hasSelectedMeat && noOtherMeat && vegOk && methodOk && favOk
+      : hasSelectedMeat && vegOk && methodOk && favOk;
+  });
 }
-
 export async function recommendHybrid(userInput, liked_dishes = []) {
   const hasInput = userInput.meats?.length || userInput.veggies?.length || userInput.types?.length || userInput.favorite;
 
@@ -103,21 +101,20 @@ export async function recommendHybrid(userInput, liked_dishes = []) {
   }
 
   const allRecipes = await fetchRecipesFromFirestore();
-  const strictFiltered = filterRecipesByInput(userInput, allRecipes);
+  const strictFiltered = filterRecipesByInput(userInput, allRecipes, "strict");
+  const relaxedFiltered = filterRecipesByInput(userInput, allRecipes, "relaxed");
   const v3Results = recommendV3(userInput, allRecipes);
 
   const strictV3 = v3Results.filter(r => r.category === "strict" && strictFiltered.some(f => f.name === r.name));
-  const similarV3 = v3Results.filter(r => r.category === "similar" && strictFiltered.some(f => f.name === r.name));
+  const similarV3 = v3Results.filter(r => r.category === "similar" && relaxedFiltered.some(f => f.name === r.name));
+  const diverseV3 = v3Results.filter(r => r.category === "diverse" && relaxedFiltered.some(f => f.name === r.name));
 
   let aprioriResults = [];
   try {
-    const logs = await fetchLogs();
-    const transactions = transformToTransactions(logs);
-    const rules = runApriori(transactions, 0.1, 0.3);
-    const rawApriori = suggestFromApriori(liked_dishes, rules);
-    aprioriResults = rawApriori.filter(name =>
-      strictFiltered.some(f => f.name === name)
-    );
+    const rawApriori = await getAprioriSuggestions(liked_dishes);
+    aprioriResults = rawApriori
+      .map(name => allRecipes.find(r => r.name === name))
+      .filter(r => r && relaxedFiltered.some(f => f.name === r.name));
   } catch (err) {
     console.error("❌ Apriori Error:", err);
   }
@@ -136,66 +133,48 @@ export async function recommendHybrid(userInput, liked_dishes = []) {
 
   strictV3.forEach(r => addOrUpdate(r.name, r.score * 1.5, 'strict'));
   similarV3.forEach(r => addOrUpdate(r.name, r.score, 'similar'));
-  aprioriResults.forEach(name => addOrUpdate(name, 2.5, 'apriori'));
+  diverseV3.forEach(r => addOrUpdate(r.name, r.score * 0.8, 'diverse'));
+  aprioriResults.forEach(r => addOrUpdate(r.name, 1.5, 'apriori'));
 
   let finalResults = Object.entries(allResults)
     .map(([name, { score, source }]) => ({ name, score, source }))
     .sort((a, b) => b.score - a.score);
 
-  if (!hasInput && liked_dishes.length) {
-    const likedRecipes = allRecipes.filter(r => liked_dishes.includes(r.name));
-    const filler = allRecipes.filter(r => !liked_dishes.includes(r.name)).slice(0, 7 - likedRecipes.length);
-    finalResults = [...likedRecipes.map(r => ({
-      name: r.name,
-      score: 1,
-      source: ["liked"]
-    })), ...filler.map(r => ({
-      name: r.name,
-      score: 0.5,
-      source: ["filler"]
-    }))];
-  }
+  const existingNames = finalResults.map(r => r.name);
 
   if (finalResults.length < 7) {
-    const existingNames = finalResults.map(r => r.name);
-    const additional = strictFiltered
+    const filler = allRecipes
       .filter(r => !existingNames.includes(r.name))
-      .slice(0, 7 - finalResults.length)
-      .map(r => ({ name: r.name, score: 0.5, source: ["extra"] }));
-    finalResults = [...finalResults, ...additional];
-  }
-
-  if (finalResults.length === 0) {
-    finalResults = allRecipes
       .sort(() => Math.random() - 0.5)
-      .slice(0, 7)
-      .map(r => ({ name: r.name, score: 0.1, source: ["fallback"] }));
+      .slice(0, 7 - finalResults.length)
+      .map(r => ({ name: r.name, score: 0.1, source: ["filler"] }));
+    finalResults = [...finalResults, ...filler];
   }
 
   return finalResults.slice(0, 7);
 }
+
+
 export async function recommendWeekly7Days(userInput, liked_dishes = []) {
   const days = ["จันทร์", "อังคาร", "พุธ", "พฤหัสบดี", "ศุกร์", "เสาร์", "อาทิตย์"];
   const weeklyResults = [];
   const usedMenus = new Set();
 
   const allRecipes = await fetchRecipesFromFirestore();
-  const strictFiltered = filterRecipesByInput(userInput, allRecipes);
+  const strictFiltered = filterRecipesByInput(userInput, allRecipes, "strict");
+  const relaxedFiltered = filterRecipesByInput(userInput, allRecipes, "relaxed");
   const v3Results = recommendV3(userInput, allRecipes);
 
   const strictMenus = v3Results.filter(r => r.category === "strict" && strictFiltered.some(f => f.name === r.name));
-  const similarMenus = v3Results.filter(r => r.category === "similar" && strictFiltered.some(f => f.name === r.name));
-  const diverseMenus = v3Results.filter(r => r.category === "diverse" && strictFiltered.some(f => f.name === r.name));
+  const similarMenus = v3Results.filter(r => r.category === "similar" && relaxedFiltered.some(f => f.name === r.name));
+  const diverseMenus = v3Results.filter(r => r.category === "diverse" && relaxedFiltered.some(f => f.name === r.name));
 
   let aprioriMenus = [];
   try {
-    const logs = await fetchLogs();
-    const transactions = transformToTransactions(logs);
-    const rules = runApriori(transactions, 0.1, 0.3);
-    const rawApriori = suggestFromApriori(liked_dishes, rules);
+    const rawApriori = await getAprioriSuggestions(liked_dishes);
     aprioriMenus = rawApriori
-      .map(name => v3Results.find(r => r.name === name))
-      .filter(r => r && r.category !== "diverse" && strictFiltered.some(f => f.name === r.name));
+      .map(name => allRecipes.find(r => r.name === name))
+      .filter(r => r && relaxedFiltered.some(f => f.name === r.name));
   } catch (err) {
     console.error("❌ Apriori Error:", err);
   }
@@ -234,10 +213,10 @@ export async function recommendWeekly7Days(userInput, liked_dishes = []) {
     }
 
     if (dayMenus.length < 3) {
-      const filler = strictFiltered.filter(r => !usedMenus.has(r.name));
+      const filler = allRecipes.filter(r => !usedMenus.has(r.name));
       while (dayMenus.length < 3 && filler.length > 0) {
         const r = filler.shift();
-        dayMenus.push({ name: r.name, score: 0.3, source: ["fallback"] });
+        dayMenus.push({ name: r.name, score: 0.1, source: ["filler"] });
         usedMenus.add(r.name);
       }
     }
