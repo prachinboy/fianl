@@ -6,54 +6,40 @@ import { getAuth } from 'firebase/auth';
 
 export async function fetchRecipesFromFirestore() {
   const snapshot = await getDocs(collection(db, "recipes"));
-  return snapshot.docs
-    .map(doc => {
-      const data = doc.data() || {};
-      return {
-        id: doc.id,
-        name: data.name || "",
-        ingredients: Array.isArray(data.ingredients) ? data.ingredients : [],
-        method: data.method || "",
-        type: data.type || ""
-      };
-    })
-    .filter(r => r.name);
+  return snapshot.docs.map(doc => {
+    const data = doc.data() || {};
+    return {
+      id: doc.id,
+      name: data.name || "",
+      ingredients: Array.isArray(data.ingredients) ? data.ingredients.map(i => i.toLowerCase()) : [],
+      method: (data.method || "").toLowerCase(),
+      type: (data.type || "").toLowerCase()
+    };
+  }).filter(r => r.name);
 }
 
 export function filterRecipesByInput(userInput, recipes) {
-  const safeInput = {
-    meats: Array.isArray(userInput.meats) ? userInput.meats : [],
-    veggies: Array.isArray(userInput.veggies) ? userInput.veggies : [],
-    types: Array.isArray(userInput.types) ? userInput.types : [],
-    favorite: userInput.favorite || ""
-  };
+  const meats = Array.isArray(userInput.meats) ? userInput.meats.map(m => m.toLowerCase()) : [];
+  const veggies = Array.isArray(userInput.veggies) ? userInput.veggies.map(v => v.toLowerCase()) : [];
+  const types = Array.isArray(userInput.types) ? userInput.types.map(t => t.toLowerCase()) : [];
+  const favorite = userInput.favorite?.toLowerCase() || "";
 
   return recipes.filter(recipe => {
-    const ing = (recipe.ingredients || []).map(i => i.toLowerCase());
-    const methodText = (recipe.method || "").toLowerCase();
-    const typeText = (recipe.type || "").toLowerCase();
-    const nameLower = (recipe.name || "").toLowerCase();
+    const ing = recipe.ingredients || [];
+    const methodText = recipe.method || "";
+    const typeText = recipe.type || "";
+    const nameLower = recipe.name.toLowerCase();
 
-    const meatOk = safeInput.meats.every(m => ing.includes(m.toLowerCase()));
-    const vegOk = safeInput.veggies.every(v => ing.includes(v.toLowerCase()));
-    const methodOk = safeInput.types.every(t =>
-      methodText.includes(t.toLowerCase()) || typeText.includes(t.toLowerCase())
-    );
-    const favOk = !safeInput.favorite || nameLower.includes(safeInput.favorite.toLowerCase());
+    const meatOk = meats.every(m => ing.includes(m));
+    const vegOk = veggies.every(v => ing.includes(v));
+    const methodOk = types.every(t => methodText === t || typeText === t);
+    const favOk = !favorite || nameLower.includes(favorite);
 
     return meatOk && vegOk && methodOk && favOk;
   });
 }
-
 export async function recommendHybrid(userInput, liked_dishes = []) {
-  const safeInput = {
-    meats: Array.isArray(userInput.meats) ? userInput.meats : [],
-    veggies: Array.isArray(userInput.veggies) ? userInput.veggies : [],
-    types: Array.isArray(userInput.types) ? userInput.types : [],
-    favorite: userInput.favorite || ""
-  };
-
-  const hasInput = safeInput.meats.length || safeInput.veggies.length || safeInput.types.length || safeInput.favorite;
+  const hasInput = userInput.meats?.length || userInput.veggies?.length || userInput.types?.length || userInput.favorite;
 
   if (!liked_dishes.length) {
     const auth = getAuth();
@@ -72,20 +58,11 @@ export async function recommendHybrid(userInput, liked_dishes = []) {
   }
 
   const allRecipes = await fetchRecipesFromFirestore();
-  const strictFiltered = filterRecipesByInput(safeInput, allRecipes);
+  const strictFiltered = filterRecipesByInput(userInput, allRecipes);
+  const v3Results = recommendV3(userInput, allRecipes);
 
-  let v3Results = hasInput
-    ? (recommendV3(safeInput, allRecipes) || []).filter(r => strictFiltered.some(f => f.name === r.name))
-    : [];
-
-  if (safeInput.favorite) {
-    const strictFav = strictFiltered.find(r =>
-      (r.name || "").includes(safeInput.favorite)
-    );
-    if (strictFav) {
-      v3Results.push({ name: strictFav.name, score: 20 });
-    }
-  }
+  const strictV3 = v3Results.filter(r => r.category === "strict");
+  const similarV3 = v3Results.filter(r => r.category === "similar");
 
   let aprioriResults = [];
   try {
@@ -112,8 +89,9 @@ export async function recommendHybrid(userInput, liked_dishes = []) {
     }
   }
 
-  v3Results.forEach(r => addOrUpdate(r.name, r.score * 1.5, 'v3'));
-  aprioriResults.forEach(d => addOrUpdate(d, 2.5, 'apriori'));
+  strictV3.forEach(r => addOrUpdate(r.name, r.score * 1.5, 'strict'));
+  similarV3.forEach(r => addOrUpdate(r.name, r.score, 'similar'));
+  aprioriResults.forEach(name => addOrUpdate(name, 2.5, 'apriori'));
 
   let finalResults = Object.entries(allResults)
     .map(([name, { score, source }]) => ({ name, score, source }))
@@ -151,7 +129,6 @@ export async function recommendHybrid(userInput, liked_dishes = []) {
 
   return finalResults.slice(0, 7);
 }
-
 export async function recommendWeekly7Days(userInput, liked_dishes = []) {
   const days = ["จันทร์", "อังคาร", "พุธ", "พฤหัสบดี", "ศุกร์", "เสาร์", "อาทิตย์"];
   const weeklyResults = [];
@@ -164,17 +141,36 @@ export async function recommendWeekly7Days(userInput, liked_dishes = []) {
   const similarMenus = v3Results.filter(r => r.category === "similar");
   const diverseMenus = v3Results.filter(r => r.category === "diverse");
 
+  let aprioriMenus = [];
+  try {
+    const logs = await fetchLogs();
+    const transactions = transformToTransactions(logs);
+    const rules = runApriori(transactions, 0.1, 0.3);
+    const rawApriori = suggestFromApriori(liked_dishes, rules);
+    aprioriMenus = rawApriori
+      .map(name => v3Results.find(r => r.name === name))
+      .filter(r => r && r.category !== "diverse");
+  } catch (err) {
+    console.error("❌ Apriori Error:", err);
+  }
+
   for (let i = 0; i < 7; i++) {
     const dayMenus = [];
 
-    // 1. เมนูตรงเป๊ะ
     const strict = strictMenus.filter(r => !usedMenus.has(r.name)).slice(0, 2);
     strict.forEach(r => {
       dayMenus.push({ name: r.name, score: r.score, source: r.source });
       usedMenus.add(r.name);
     });
 
-    // 2. เมนูใกล้เคียง (ถ้ายังไม่ครบ)
+    if (dayMenus.length < 3) {
+      const apriori = aprioriMenus.filter(r => !usedMenus.has(r.name)).slice(0, 1);
+      apriori.forEach(r => {
+        dayMenus.push({ name: r.name, score: r.score, source: r.source });
+        usedMenus.add(r.name);
+      });
+    }
+
     if (dayMenus.length < 3) {
       const similar = similarMenus.filter(r => !usedMenus.has(r.name)).slice(0, 1);
       similar.forEach(r => {
@@ -183,7 +179,6 @@ export async function recommendWeekly7Days(userInput, liked_dishes = []) {
       });
     }
 
-    // 3. เมนูหลากหลาย (ถ้ายังไม่ครบ)
     if (dayMenus.length < 3) {
       const diverse = diverseMenus.filter(r => !usedMenus.has(r.name)).slice(0, 1);
       diverse.forEach(r => {
@@ -192,12 +187,13 @@ export async function recommendWeekly7Days(userInput, liked_dishes = []) {
       });
     }
 
-    // 4. Fallback (ถ้ายังไม่ครบ)
-    const filler = allRecipes.filter(r => !usedMenus.has(r.name));
-    while (dayMenus.length < 3 && filler.length > 0) {
-      const r = filler.shift();
-      dayMenus.push({ name: r.name, score: 0.3, source: ["fallback"] });
-      usedMenus.add(r.name);
+    if (dayMenus.length < 3) {
+      const filler = allRecipes.filter(r => !usedMenus.has(r.name));
+      while (dayMenus.length < 3 && filler.length > 0) {
+        const r = filler.shift();
+        dayMenus.push({ name: r.name, score: 0.3, source: ["fallback"] });
+        usedMenus.add(r.name);
+      }
     }
 
     weeklyResults.push({

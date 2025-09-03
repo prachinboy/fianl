@@ -1,6 +1,9 @@
 import { db } from '../firebase/firebaseConfig.js';
 import { collection, getDocs } from 'firebase/firestore';
 
+/**
+ * ดึงข้อมูล log การกดหัวใจเมนูจาก Firestore
+ */
 export async function fetchLogs() {
   const logs = [];
   const snapshot = await getDocs(collection(db, 'recommend_logs'));
@@ -8,12 +11,18 @@ export async function fetchLogs() {
   return logs;
 }
 
+/**
+ * แปลง log เป็นรายการเมนูที่ผู้ใช้ชอบ (transactions)
+ */
 export function transformToTransactions(logs) {
   return logs
     .map(log => log.liked_dishes || [])
     .filter(t => t.length >= 2);
 }
 
+/**
+ * สร้างกฎ Apriori แบบง่าย
+ */
 export function runApriori(transactions, minSupport = 0.3, minConfidence = 0.6) {
   const itemCount = {};
   const total = transactions.length;
@@ -54,6 +63,9 @@ export function runApriori(transactions, minSupport = 0.3, minConfidence = 0.6) 
   return rules;
 }
 
+/**
+ * แนะนำเมนูจากกฎ Apriori
+ */
 export function suggestFromApriori(liked_dishes, rules) {
   const suggestions = new Set();
   rules.forEach(rule => {
@@ -64,6 +76,9 @@ export function suggestFromApriori(liked_dishes, rules) {
   return [...suggestions];
 }
 
+/**
+ * กรองเมนูจาก Apriori ให้ตรงกับ userInput
+ */
 export async function generateFilteredRecommendations(userInput, liked_dishes) {
   const logs = await fetchLogs();
   const transactions = transformToTransactions(logs);
@@ -83,9 +98,10 @@ export async function generateFilteredRecommendations(userInput, liked_dishes) {
     }
   });
 
-  const meats = userInput.meats.map(m => m.toLowerCase());
-  const veggies = userInput.veggies.map(v => v.toLowerCase());
-  const methods = userInput.types.map(m => m.toLowerCase());
+  const meats = Array.isArray(userInput.meats) ? userInput.meats.map(m => m.toLowerCase()) : [];
+  const veggies = Array.isArray(userInput.veggies) ? userInput.veggies.map(v => v.toLowerCase()) : [];
+  const methods = Array.isArray(userInput.types) ? userInput.types.map(m => m.toLowerCase()) : [];
+  const favorite = userInput.favorite?.toLowerCase() || "";
 
   const filtered = rawSuggestions.filter(name => {
     const recipe = recipesMap[name];
@@ -94,12 +110,14 @@ export async function generateFilteredRecommendations(userInput, liked_dishes) {
     const ing = recipe.ingredients || [];
     const methodText = recipe.method || "";
     const typeText = recipe.type || "";
+    const nameLower = name.toLowerCase();
 
     const meatsMatch = meats.every(m => ing.includes(m));
     const veggiesMatch = veggies.every(v => ing.includes(v));
     const methodsMatch = methods.every(m => methodText === m || typeText === m);
+    const favMatch = !favorite || nameLower.includes(favorite);
 
-    return meatsMatch && veggiesMatch && methodsMatch;
+    return meatsMatch && veggiesMatch && methodsMatch && favMatch;
   });
 
   return filtered.map(name => ({

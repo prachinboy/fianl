@@ -8,7 +8,10 @@ const synonyms = {
 };
 
 export function recommendV3(userInput, recipes = []) {
-  const { meats = [], veggies = [], types = [], favorite = "" } = userInput;
+  const meats = Array.isArray(userInput.meats) ? userInput.meats.map(m => m.toLowerCase()) : [];
+  const veggies = Array.isArray(userInput.veggies) ? userInput.veggies.map(v => v.toLowerCase()) : [];
+  const types = Array.isArray(userInput.types) ? userInput.types.map(t => t.toLowerCase()) : [];
+  const favorite = userInput.favorite?.toLowerCase() || "";
 
   return recipes.map(recipe => {
     const name = (recipe.name || "").toLowerCase();
@@ -19,38 +22,57 @@ export function recommendV3(userInput, recipes = []) {
     let score = 0;
     const source = [];
 
-    let methodMatch = types.some(t => method === t.toLowerCase() || type === t.toLowerCase());
-    let meatMatch = meats.some(meat => {
-      const syns = synonyms[meat] || [meat];
-      return syns.some(s => ingredients.includes(s.toLowerCase()));
-    });
-    let vegMatch = veggies.some(v => ingredients.includes(v.toLowerCase()));
-    let favMatch = favorite && name.includes(favorite.toLowerCase());
-
-    if (methodMatch) {
+    // ✅ กรอง method/type แบบ exact
+    const methodMatch = types.every(t => method === t || type === t);
+    if (methodMatch && types.length > 0) {
       score += 2;
       source.push("method");
     }
-    if (meatMatch) {
+
+    // ✅ กรอง meats แบบครบทุกตัวผ่าน synonyms
+    const meatMatch = meats.every(meat => {
+      const syns = synonyms[meat] || [meat];
+      return syns.some(s => ingredients.includes(s));
+    });
+    if (meatMatch && meats.length > 0) {
       score += 2;
       source.push("meat");
     }
-    if (vegMatch) {
+
+    // ✅ กรอง veggies แบบครบทุกตัว
+    const vegMatch = veggies.every(v => ingredients.includes(v));
+    if (vegMatch && veggies.length > 0) {
       score += 1.5;
       source.push("veggie");
     }
+
+    // ✅ กรอง favorite
+    const favMatch = favorite && name.includes(favorite);
     if (favMatch) {
       score += 3;
       source.push("favorite");
     }
 
+    // ✅ กำหนด category แบบเป๊ะ
+    const isStrict = methodMatch && meatMatch && vegMatch;
+    const isSimilar = methodMatch || meatMatch || vegMatch;
+
     let category = "diverse";
-    if (methodMatch && meatMatch && vegMatch) category = "strict";
-    else if (methodMatch || meatMatch || vegMatch) category = "similar";
+    if (isStrict) category = "strict";
+    else if (isSimilar) category = "similar";
 
     return { name: recipe.name, score, source, category };
   })
-  .filter(r => r.score > 0)
+  .filter(r => {
+    // ✅ กรองให้ผ่านทุกเงื่อนไขพร้อมกันก่อนถือว่า strict จริง
+    const required = [];
+    if (meats.length) required.push("meat");
+    if (veggies.length) required.push("veggie");
+    if (types.length) required.push("method");
+    if (favorite) required.push("favorite");
+
+    return required.every(req => r.source.includes(req));
+  })
   .sort((a, b) => b.score - a.score);
 }
 
