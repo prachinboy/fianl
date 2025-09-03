@@ -1,9 +1,7 @@
-import { db } from '../firebase/firebaseConfig.js';
+import { db } from '@/firebase/firebaseConfig';
 import { collection, getDocs } from 'firebase/firestore';
 
-/**
- * ดึงข้อมูล log การกดหัวใจเมนูจาก Firestore
- */
+/** ดึง logs จาก Firestore */
 export async function fetchLogs() {
   const logs = [];
   const snapshot = await getDocs(collection(db, 'recommend_logs'));
@@ -11,18 +9,14 @@ export async function fetchLogs() {
   return logs;
 }
 
-/**
- * แปลง log เป็นรายการเมนูที่ผู้ใช้ชอบ (transactions)
- */
+/** แปลง logs เป็น transactions */
 export function transformToTransactions(logs) {
   return logs
     .map(log => log.liked_dishes || [])
     .filter(t => t.length >= 2);
 }
 
-/**
- * สร้างกฎ Apriori แบบง่าย
- */
+/** สร้างกฎ Apriori แบบง่าย */
 export function runApriori(transactions, minSupport = 0.3, minConfidence = 0.6) {
   const itemCount = {};
   const total = transactions.length;
@@ -63,67 +57,15 @@ export function runApriori(transactions, minSupport = 0.3, minConfidence = 0.6) 
   return rules;
 }
 
-/**
- * แนะนำเมนูจากกฎ Apriori
- */
+/** แนะนำเมนูจากกฎ Apriori */
 export function suggestFromApriori(liked_dishes, rules) {
   const suggestions = new Set();
   rules.forEach(rule => {
-    if (rule.lhs.every(item => liked_dishes.includes(item))) {
-      rule.rhs.forEach(item => suggestions.add(item));
+    const left = rule.lhs;
+    const right = rule.rhs;
+    if (left.every(item => liked_dishes.includes(item))) {
+      right.forEach(item => suggestions.add(item));
     }
   });
   return [...suggestions];
-}
-
-/**
- * กรองเมนูจาก Apriori ให้ตรงกับ userInput
- */
-export async function generateFilteredRecommendations(userInput, liked_dishes) {
-  const logs = await fetchLogs();
-  const transactions = transformToTransactions(logs);
-  const rules = runApriori(transactions);
-  const rawSuggestions = suggestFromApriori(liked_dishes, rules);
-
-  const snapshot = await getDocs(collection(db, 'recipes'));
-  const recipesMap = {};
-  snapshot.forEach(doc => {
-    const data = doc.data();
-    if (data.name) {
-      recipesMap[data.name] = {
-        ingredients: Array.isArray(data.ingredients) ? data.ingredients.map(i => i.toLowerCase()) : [],
-        method: (data.method || "").toLowerCase(),
-        type: (data.type || "").toLowerCase()
-      };
-    }
-  });
-
-  const meats = Array.isArray(userInput.meats) ? userInput.meats.map(m => m.toLowerCase()) : [];
-  const veggies = Array.isArray(userInput.veggies) ? userInput.veggies.map(v => v.toLowerCase()) : [];
-  const methods = Array.isArray(userInput.types) ? userInput.types.map(m => m.toLowerCase()) : [];
-  const favorite = userInput.favorite?.toLowerCase() || "";
-
-  const filtered = rawSuggestions.filter(name => {
-    const recipe = recipesMap[name];
-    if (!recipe) return false;
-
-    const ing = recipe.ingredients || [];
-    const methodText = recipe.method || "";
-    const typeText = recipe.type || "";
-    const nameLower = name.toLowerCase();
-
-    const meatsMatch = meats.every(m => ing.includes(m));
-    const veggiesMatch = veggies.every(v => ing.includes(v));
-    const methodsMatch = methods.every(m => methodText === m || typeText === m);
-    const favMatch = !favorite || nameLower.includes(favorite);
-
-    return meatsMatch && veggiesMatch && methodsMatch && favMatch;
-  });
-
-  return filtered.map(name => ({
-    name,
-    score: 0.5,
-    source: ["apriori"],
-    category: "diverse"
-  }));
 }

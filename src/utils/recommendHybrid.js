@@ -4,6 +4,15 @@ import { db } from '@/firebase/firebaseConfig';
 import { doc, getDoc, collection, getDocs } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 
+const synonyms = {
+  "ไก่": ["ไก่", "อกไก่", "น่องไก่", "chicken"],
+  "หมู": ["หมู", "เนื้อหมู", "pork"],
+  "เนื้อ": ["เนื้อ", "เนื้อวัว", "beef"],
+  "กุ้ง": ["กุ้ง", "shrimp"],
+  "ปลา": ["ปลา", "fish"],
+  "เป็ด": ["เป็ด", "duck"]
+};
+
 export async function fetchRecipesFromFirestore() {
   const snapshot = await getDocs(collection(db, "recipes"));
   return snapshot.docs.map(doc => {
@@ -19,25 +28,61 @@ export async function fetchRecipesFromFirestore() {
 }
 
 export function filterRecipesByInput(userInput, recipes) {
-  const meats = Array.isArray(userInput.meats) ? userInput.meats.map(m => m.toLowerCase()) : [];
-  const veggies = Array.isArray(userInput.veggies) ? userInput.veggies.map(v => v.toLowerCase()) : [];
-  const types = Array.isArray(userInput.types) ? userInput.types.map(t => t.toLowerCase()) : [];
-  const favorite = userInput.favorite?.toLowerCase() || "";
+  const safeInput = {
+    meats: Array.isArray(userInput.meats) ? userInput.meats : [],
+    veggies: Array.isArray(userInput.veggies) ? userInput.veggies : [],
+    types: Array.isArray(userInput.types) ? userInput.types : [],
+    favorite: userInput.favorite || ""
+  };
 
-  return recipes.filter(recipe => {
-    const ing = recipe.ingredients || [];
-    const methodText = recipe.method || "";
-    const typeText = recipe.type || "";
-    const nameLower = recipe.name.toLowerCase();
+  return recipes
+    .filter(recipe => recipe && recipe.name)
+    .filter(recipe => {
+      const ing = Array.isArray(recipe.ingredients)
+        ? recipe.ingredients.map(i => (i || "").toLowerCase())
+        : [];
+      const methodText = (recipe.method || "").toLowerCase();
+      const typeText = (recipe.type || "").toLowerCase();
+      const nameLower = (recipe.name || "").toLowerCase();
 
-    const meatOk = meats.every(m => ing.includes(m));
-    const vegOk = veggies.every(v => ing.includes(v));
-    const methodOk = types.every(t => methodText === t || typeText === t);
-    const favOk = !favorite || nameLower.includes(favorite);
+      const hasSelectedMeat =
+        !safeInput.meats.length ||
+        safeInput.meats.every(m =>
+          (synonyms[m] || [m]).some(syn =>
+            ing.some(i => i.includes(syn.toLowerCase())) ||
+            nameLower.includes(syn.toLowerCase())
+          )
+        );
 
-    return meatOk && vegOk && methodOk && favOk;
-  });
+      const noOtherMeat =
+        !safeInput.meats.length ||
+        !ing.some(i =>
+          Object.keys(synonyms)
+            .filter(key => !safeInput.meats.includes(key))
+            .some(other =>
+              (synonyms[other] || [other]).some(syn => i.includes(syn.toLowerCase()))
+            )
+        );
+
+      const vegOk =
+        !safeInput.veggies.length ||
+        safeInput.veggies.every(v =>
+          ing.some(i => i.includes(v.toLowerCase())) || nameLower.includes(v.toLowerCase())
+        );
+
+      const methodOk =
+        !safeInput.types.length ||
+        safeInput.types.every(t =>
+          methodText.includes(t.toLowerCase()) || typeText.includes(t.toLowerCase())
+        );
+
+      const favOk =
+        !safeInput.favorite || nameLower.includes(safeInput.favorite.toLowerCase());
+
+      return hasSelectedMeat && noOtherMeat && vegOk && methodOk && favOk;
+    });
 }
+
 export async function recommendHybrid(userInput, liked_dishes = []) {
   const hasInput = userInput.meats?.length || userInput.veggies?.length || userInput.types?.length || userInput.favorite;
 
@@ -61,8 +106,8 @@ export async function recommendHybrid(userInput, liked_dishes = []) {
   const strictFiltered = filterRecipesByInput(userInput, allRecipes);
   const v3Results = recommendV3(userInput, allRecipes);
 
-  const strictV3 = v3Results.filter(r => r.category === "strict");
-  const similarV3 = v3Results.filter(r => r.category === "similar");
+  const strictV3 = v3Results.filter(r => r.category === "strict" && strictFiltered.some(f => f.name === r.name));
+  const similarV3 = v3Results.filter(r => r.category === "similar" && strictFiltered.some(f => f.name === r.name));
 
   let aprioriResults = [];
   try {
@@ -135,11 +180,12 @@ export async function recommendWeekly7Days(userInput, liked_dishes = []) {
   const usedMenus = new Set();
 
   const allRecipes = await fetchRecipesFromFirestore();
+  const strictFiltered = filterRecipesByInput(userInput, allRecipes);
   const v3Results = recommendV3(userInput, allRecipes);
 
-  const strictMenus = v3Results.filter(r => r.category === "strict");
-  const similarMenus = v3Results.filter(r => r.category === "similar");
-  const diverseMenus = v3Results.filter(r => r.category === "diverse");
+  const strictMenus = v3Results.filter(r => r.category === "strict" && strictFiltered.some(f => f.name === r.name));
+  const similarMenus = v3Results.filter(r => r.category === "similar" && strictFiltered.some(f => f.name === r.name));
+  const diverseMenus = v3Results.filter(r => r.category === "diverse" && strictFiltered.some(f => f.name === r.name));
 
   let aprioriMenus = [];
   try {
@@ -149,7 +195,7 @@ export async function recommendWeekly7Days(userInput, liked_dishes = []) {
     const rawApriori = suggestFromApriori(liked_dishes, rules);
     aprioriMenus = rawApriori
       .map(name => v3Results.find(r => r.name === name))
-      .filter(r => r && r.category !== "diverse");
+      .filter(r => r && r.category !== "diverse" && strictFiltered.some(f => f.name === r.name));
   } catch (err) {
     console.error("❌ Apriori Error:", err);
   }
@@ -188,7 +234,7 @@ export async function recommendWeekly7Days(userInput, liked_dishes = []) {
     }
 
     if (dayMenus.length < 3) {
-      const filler = allRecipes.filter(r => !usedMenus.has(r.name));
+      const filler = strictFiltered.filter(r => !usedMenus.has(r.name));
       while (dayMenus.length < 3 && filler.length > 0) {
         const r = filler.shift();
         dayMenus.push({ name: r.name, score: 0.3, source: ["fallback"] });
